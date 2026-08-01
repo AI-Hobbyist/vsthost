@@ -113,6 +113,12 @@ int wmain(int argc, wchar_t **argv)
     }
     if (!bExe && !bDll && !bVst3) bExe = bDll = bVst3 = true;   /* 默认 --all */
 
+    /* shell 路径规范化为绝对路径：写入 .ini 的始终为绝对路径，
+       wrapper 与主程序快捷方式 exe 均可直接使用（主程序不解析相对路径） */
+    wchar_t absPath[2048];
+    if (GetFullPathNameW(shell.c_str(), 2048, absPath, NULL))
+        shell = absPath;
+
     CSingleHost host;
     if (!host.LoadForEnum(shell))
     {

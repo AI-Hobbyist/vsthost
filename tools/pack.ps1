@@ -86,9 +86,10 @@ Write-Host "Created: $target  <-  $exe"
 # ---- Shell internal: write sidecar .ini (absolute shell path) ----
 if ($needIni) {
     $ini = $target + ".ini"
+    $absShell = (Resolve-Path $Plugin).Path   # 始终写绝对路径（主程序不解析相对路径）
     $lines = @(
         "[shell2vst]",
-        "shell=$Plugin",
+        "shell=$absShell",
         "name=$Internal"
     )
     Set-Content -Path $ini -Value $lines -Encoding Unicode
