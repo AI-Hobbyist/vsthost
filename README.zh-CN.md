@@ -21,6 +21,46 @@
 
 ---
 
+## 与上游的对比
+
+本仓库是对 [Arakula/vsthost](https://github.com/Arakula/vsthost)（Hermann Seib 的 VSTHost 开源版，V1.16r）的深度重构。旧机架时代代码归档在 `Deprecated/`（不再编译）。
+
+### 新增
+
+| 功能 | 说明 |
+|---|---|
+| **VST3 支持** | `Vst3Plugin`（基于 vst3sdk 3.8.0 hosting 层：模块/组件/编辑器/状态） |
+| **JACK2 后端** | 原生 JACK client——音频与 MIDI 端口随插件能力注册、客户端名=插件名、启动自动检测、JACK 不可用回退 ASIO |
+| **同名自动加载** | exe 改名为插件同名（`Foo.dll` → `Foo.exe`）启动即自动加载；另支持拖放与命令行 |
+| **响度电平表（BS.1770）** | 独立窗口的 M/S/I/LRA/True Peak、EBU R128 / ATSC 等标准、CSV 响度日志 |
+| **MIDI CC→参数映射** | `MidiMapDialog`（VST2 / VST3） |
+| **托盘/关闭行为/全局设置** | 最小化到托盘、关闭行为可配、全局设置对话框 |
+| **应用图标/版本/中文说明书** | 全尺寸图标、`VERSIONINFO`（1.0.0.0）、打包自动附带 `docs/说明书.md` |
+| **`shell2vst` 独立工具** | 命令行工具把 Shell 效果器拆成独立 exe/dll/vst3——与主程序完全解耦 |
+| **打包工具链** | `tools/pack.ps1`、`refresh_test_exes.ps1`、`build_wrappers.ps1`、`make_icon.py` |
+| **双语 README + .gitignore** | 英文（默认）+ 中文；忽略编译/测试/第三方 SDK 产物 |
+
+### 精简（移除）
+
+| 组件 | 说明 |
+|---|---|
+| **MDI 机架 / 多插件 / 链** | `MainFrm`/`ChildFrm`/`ChildView`/`EffChainDlg`/`EffectWnd`/`EffEditWnd`/`EffSecWnd` → 仅单插件 |
+| **MME / DirectSound 后端** | `WaveDev`/`DSoundDev`/`SpecWave`/`SpecDSound`（仅保留 ASIO + JACK2） |
+| **虚拟 MIDI 键盘** | `MidiKeybDlg` |
+| **若干对话框** | `ProgNameDlg`/`ShellSelDlg`/`EffMidiChn`/`AsioChannelSelectDialog` |
+| **VS2008 工程文件** | `.dsp`/`.dsw`/`.vcproj` → 单一 `vsthost.vcxproj`（Win32 + x64） |
+| **宿主扩展层** | `SmpVSTHost`/`specmidi`/`mfcmidi`/`mfcwave` → 精简为 `MidiInput`/`MidiOutput` |
+| **资源脚本 / 二进制** | `vsthost.rc` UI 脚本、`resource.h`、`Release/mkbd.ocx` 等 |
+
+### 保留并改造
+
+- **VST2 加载** — 重构为精简的 `Vst2Plugin` + `CEffect`
+- **ASIO 后端** — 封装为 `AsioBackend`（驱动选择/控制面板/通道映射）
+- **`.fxp`/`.fxb` 状态** — 原子写入、按内部效果器分档、30 秒自动保存
+- **加载入口** — 同名 / 命令行 / 拖放
+
+---
+
 ## 特性
 
 - **同名自动加载**：`vsthost.exe` 改名为插件同名（`MyEffect.dll` / `MyEffect.vst3` → 旁放 `MyEffect.exe`），双击即自动加载该插件并出声；也支持把插件**拖到窗口**加载或用命令行指定。

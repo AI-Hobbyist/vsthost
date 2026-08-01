@@ -21,6 +21,46 @@ Supports **VST2 / VST3** plugins, **ASIO / JACK2** audio backends, and a built-i
 
 ---
 
+## Comparison with Upstream
+
+This repository is a deep rework of [Arakula/vsthost](https://github.com/Arakula/vsthost) (the open-source VSTHost by Hermann Seib, V1.16r). Legacy rack-era code is archived under `Deprecated/` (not built).
+
+### Added
+
+| Feature | Notes |
+|---|---|
+| **VST3 support** | `Vst3Plugin` on the vst3sdk 3.8.0 hosting layer (module / component / editor / state) |
+| **JACK2 backend** | Native JACK client — audio & MIDI ports registered per plugin capability, client name = plugin name, auto-detect on startup, fallback to ASIO |
+| **Same-name auto-load** | Rename the exe to match your plugin (`Foo.dll` → `Foo.exe`) and it loads on startup; drag & drop and command line too |
+| **Loudness meters (BS.1770)** | Standalone window with M/S/I/LRA/True Peak, EBU R128 / ATSC etc., CSV loudness logging |
+| **MIDI CC → parameter mapping** | `MidiMapDialog` for VST2 / VST3 |
+| **Tray, close behavior & global settings** | Minimize to tray, configurable close action, global settings dialog |
+| **App icon / version / Chinese manual** | Full-size icon, `VERSIONINFO` (1.0.0.0), `docs/说明书.md` bundled on packaging |
+| **`shell2vst` standalone tool** | CLI that unpacks shell effects into standalone exe / dll / vst3 — fully decoupled from the host |
+| **Packaging tooling** | `tools/pack.ps1`, `refresh_test_exes.ps1`, `build_wrappers.ps1`, `make_icon.py` |
+| **Bilingual README + .gitignore** | EN (default) + zh-CN; ignores build / test / third-party SDK artifacts |
+
+### Removed (simplified)
+
+| Component | Notes |
+|---|---|
+| **MDI rack / multi-plugin / chains** | `MainFrm` / `ChildFrm` / `ChildView` / `EffChainDlg` / `EffectWnd` / `EffEditWnd` / `EffSecWnd` → single-plugin only |
+| **MME / DirectSound backends** | `WaveDev` / `DSoundDev` / `SpecWave` / `SpecDSound` (ASIO + JACK2 only) |
+| **Virtual MIDI keyboard** | `MidiKeybDlg` |
+| **Assorted dialogs** | `ProgNameDlg` / `ShellSelDlg` / `EffMidiChn` / `AsioChannelSelectDialog` |
+| **VS2008 project files** | `.dsp` / `.dsw` / `.vcproj` → single `vsthost.vcxproj` (Win32 + x64) |
+| **Host extension layer** | `SmpVSTHost` / `specmidi` / `mfcmidi` / `mfcwave` → lean `MidiInput` / `MidiOutput` |
+| **Resource script / binaries** | `vsthost.rc` UI scripts, `resource.h`, `Release/mkbd.ocx`, etc. |
+
+### Kept & reworked
+
+- **VST2 loading** — re-factored into lean `Vst2Plugin` + `CEffect`
+- **ASIO backend** — wrapped as `AsioBackend` (driver picker / control panel / channel mapping)
+- **`.fxp`/`.fxb` state** — atomic writes, per-internal-effect slots, 30 s auto-save
+- **Loading entry points** — same-name, command line, drag & drop
+
+---
+
 ## Features
 
 - **Same-name auto-load**: rename `vsthost.exe` to match your plugin (`MyEffect.dll` / `MyEffect.vst3` → place `MyEffect.exe` beside it), double-click to auto-load and play; you can also drag & drop a plugin onto the window or pass it on the command line.
