@@ -1,32 +1,59 @@
-# Prerequisites
-*.d
+# ====== Visual Studio 用户状态 ======
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.db.idx
+*.VC.opendb
+*.VC.opendb.lock
+*.ncb
+*.sdf
+*.opensdf
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
+# ====== 编译输出（MSBuild：OutDir=bin/ IntDir=obj/，见 vsthost.vcxproj）======
+bin/
+obj/
 *.obj
-
-# Precompiled Headers
-*.gch
 *.pch
+*.pdb
+*.ilk
+*.idb
+*.ipch
+*.tlog
+*.lastbuildstate
+*.res
+*.exp
+*.map
+*.metagen
+*.sbr
+*.pgc
+*.pgd
+*.pgi
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+# ====== 测试产物与第三方测试插件（不入库）======
+test_exe/
+test/
+test64/
+testNDI/
+testNUGEN/
+testSplit16/
+testWave/
+testWave17/
+testYL/
 
-# Fortran module files
-*.mod
-*.smod
+# ====== 第三方 SDK（构建必需，需自行放置；见 README「依赖」）======
+# 注意：VST 是符号链接（ReparsePoint），git 按文件处理，规则不带尾斜杠才能命中
+VST
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
+# ====== Deprecated 存档中的二进制（仅保留源码）======
+Deprecated/Release/
 
-# Executables
-#*.exe
-*.out
-*.app
+# ====== 工具 / 本地索引 ======
+.codegraph/
+
+# ====== 杂项 ======
+*.log
+Thumbs.db
+Desktop.ini
