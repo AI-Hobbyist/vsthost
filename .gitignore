@@ -55,6 +55,8 @@ Deprecated/Release/
 
 # ====== 发布产物 ======
 release/
+vsthost/
+vsthost-*.zip
 
 # ====== 杂项 ======
 *.log
