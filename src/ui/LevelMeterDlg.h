@@ -15,6 +15,7 @@ class CLevelMeterDlg : public CDialog
 public:
     CLevelMeterDlg(CMainFrame *owner);
     BOOL Create(CWnd *pParent);
+    void ResyncTimer();   // 按主窗口当前刷新周期重设定时器（峰值表同周期平滑刷新）
 
     CFont m_fontUI;
     CFont m_fontVal;      // 数值框小字体

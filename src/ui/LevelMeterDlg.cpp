@@ -149,7 +149,8 @@ BOOL CLevelMeterDlg::OnInitDialog()
         pStd->SetCurSel(std);
     }
 
-    SetTimer(1, 100, NULL);     // 100ms 刷新
+    /* 刷新周期跟随主窗口峰值表（默认 50ms，可配 30/50/80/100ms） */
+    ResyncTimer();
     return TRUE;
 }
 
@@ -180,6 +181,20 @@ void CLevelMeterDlg::OnTimer(UINT_PTR nIDEvent)
     if (nIDEvent == 1 && m_hWnd)
         InvalidateRect(&m_drawRc, FALSE);
     CDialog::OnTimer(nIDEvent);
+}
+
+/*****************************************************************************/
+/* ResyncTimer : 按主窗口当前刷新周期重设定时器（与峰值表平滑刷新一致）       */
+/*****************************************************************************/
+void CLevelMeterDlg::ResyncTimer()
+{
+    if (!m_hWnd)
+        return;
+    int ms = m_pOwner ? m_pOwner->MeterRefreshMs() : 50;
+    if (ms < 20) ms = 20;
+    if (ms > 200) ms = 200;
+    KillTimer(1);
+    SetTimer(1, (UINT)ms, NULL);
 }
 
 void CLevelMeterDlg::OnSize(UINT nType, int cx, int cy)

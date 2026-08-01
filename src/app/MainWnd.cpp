@@ -1941,6 +1941,9 @@ void CMainFrame::OnRefreshSelect(UINT nID)
                                AsioConfigPath().c_str());
 
     RefreshMeterTimer();
+    /* 独立响度表窗口同步刷新周期（与峰值表一致） */
+    if (m_pMeterDlg)
+        m_pMeterDlg->ResyncTimer();
     ApplyRefreshMenu();
 }
 
@@ -2160,6 +2163,9 @@ void CMainFrame::ApplyMeterSettings(bool show, int refreshMs, double peakHold,
     SetSilenceReset(silence);
     SetSilenceThresh(silenceThresh);
     RefreshMeterTimer();
+    /* 独立响度表窗口同步刷新周期（与峰值表一致） */
+    if (m_pMeterDlg)
+        m_pMeterDlg->ResyncTimer();
     ApplyRefreshMenu();
     ApplyPeakMenu();
     Invalidate(FALSE);
@@ -2529,7 +2535,7 @@ void CMainFrame::OnFileSaveExe()
 
 void CMainFrame::OnAppAbout()
 {
-    AfxMessageBox(_T("Single VST Host 1.0（vsthost）\n单插件 VST2/VST3 宿主（ASIO / JACK2 音频后端）\n\n本仓库的改造与代码由 AI（GitHub Copilot）辅助编写，\n衍生自 Arakula/vsthost（尊重原开发者）。"),
+    AfxMessageBox(_T("Single VST Host 1.1（vsthost）\n单插件 VST2/VST3 宿主（ASIO / JACK2 音频后端）\n\n本仓库的改造与代码由 AI（GitHub Copilot）辅助编写，\n衍生自 Arakula/vsthost（尊重原开发者）。"),
                   MB_OK | MB_ICONINFORMATION);
 }
 
