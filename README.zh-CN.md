@@ -100,16 +100,20 @@
 
 ## 构建
 
-Visual Studio 2022+（`vsthost.sln` / `vsthost.vcxproj`），**Win32 + x64 双平台**，Debug / Release：
+Visual Studio 2022+（`vsthost.sln` / `vsthost.vcxproj`），**Win32 + x64 双平台**，Debug / Release。
+宿主与独立 Shell 拆包工具（`shell2vst.vcxproj`）共用同一套配置：
 
 ```powershell
 & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" `
   vsthost.vcxproj /p:Configuration=Release /p:Platform=x64
 & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" `
   vsthost.vcxproj /p:Configuration=Release /p:Platform=Win32
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" `
+  shell2vst.vcxproj /p:Configuration=Release /p:Platform=x64
 ```
 
-输出到 `bin\x64\Release\vsthost.exe` / `bin\Win32\Release\vsthost.exe`（中间文件在 `obj\`）。
+输出到 `bin\x64\Release\vsthost.exe` / `bin\Win32\Release\vsthost.exe`（中间文件在 `obj\`）；
+工具输出到 `bin\x64\Release\shell2vst.exe` / `bin\Win32\Release\shell2vst.exe`。
 
 - 32 位插件配 **x86** 版宿主，64 位插件配 **x64** 版宿主（位数不匹配会提示）。
 
@@ -139,6 +143,19 @@ JACK 运行库为**动态加载**：缺失时提示安装 JACK2（可从 [jackau
 
 本地测试用快捷方式 exe 由 `tools\refresh_test_exes.ps1` 维护（生成到 `test_exe\`，该目录不入库）。
 
+### shell2vst —— 独立 Shell 拆包工具
+
+`shell2vst.exe`（由 `shell2vst.vcxproj` 构建）是一个**与主程序完全解耦的独立命令行工具**：枚举 shell 插件（如 Waves WaveShell）并批量生成独立插件/快捷方式——适合无法扫描 shell 的 DAW 使用：
+
+```powershell
+# 枚举并生成全部：快捷方式 exe + VST2 包装器 + VST3 包装器
+.\shell2vst.exe "D:\plugins\WaveShell1-VST3 16.6_x64.vst3" --out "D:\out"
+# 只生成 VST2 包装器
+.\shell2vst.exe "D:\plugins\WaveShell1-VST3 16.6_x64.vst3" --dll
+```
+
+参数：`--exe|--dll|--vst3|--all`（默认 all）、`--host <宿主exe>`（快捷方式 exe 模板；默认取工具同目录的 `vsthost*.exe`）、`--out <目录>`（默认 `standalone_<shell>`，按声道子文件夹如 `Mono/`、`Stereo/`、`5.x/` 分类输出）。包装器模板（`wrapper\shell2vst2.dll` / `shell2vst3.dll`，由 `tools\build_wrappers.ps1` 构建）在工具同目录查找。
+
 ## 目录结构
 
 ```
@@ -147,7 +164,8 @@ src/
   host/     IPlugin / Vst2Plugin / Vst3Plugin / SingleHost / AsioBackend / JackBackend / MidiInput / MidiOutput
   dsp/      LoudnessCore（BS.1770 响度核心）
   ui/       LevelMeterDlg / MeterSettingsDlg / GlobalSettingsDlg / MidiMapDialog / ClosePromptDlg / loudness_std
-  wrapper/  shell2vst2 / shell2vst3（Shell 内部效果器包装）
+  tool/     shell2vst_main（独立 Shell 拆包命令行工具 shell2vst.exe）
+  wrapper/  shell2vst2 / shell2vst3（Shell 包装器 DLL 模板）
 tools/      refresh_test_exes.ps1 / pack.ps1 / build_wrappers.ps1 / make_icon.py
 res/        图标与位图资源（icon.png → res/icon.ico 全尺寸）
 Deprecated/ 已弃用的旧版机架代码/旧工程文件（不再编译，仅存档）

@@ -92,16 +92,20 @@ This project can be used as a **minimal single-plugin VST host template** — le
 
 ## Building
 
-Visual Studio 2022+ (`vsthost.sln` / `vsthost.vcxproj`), **Win32 + x64**, Debug / Release:
+Visual Studio 2022+ (`vsthost.sln` / `vsthost.vcxproj`), **Win32 + x64**, Debug / Release.
+The host and the standalone shell-unpacker tool (`shell2vst.vcxproj`) share the same config:
 
 ```powershell
 & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" `
   vsthost.vcxproj /p:Configuration=Release /p:Platform=x64
 & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" `
   vsthost.vcxproj /p:Configuration=Release /p:Platform=Win32
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" `
+  shell2vst.vcxproj /p:Configuration=Release /p:Platform=x64
 ```
 
 Outputs to `bin\x64\Release\vsthost.exe` / `bin\Win32\Release\vsthost.exe` (intermediate files under `obj\`).
+The tool outputs to `bin\x64\Release\shell2vst.exe` / `bin\Win32\Release\shell2vst.exe`.
 
 - 32-bit plugins need the **x86** host, 64-bit plugins the **x64** host (a mismatch is reported).
 
@@ -131,6 +135,19 @@ The JACK runtime is **dynamically loaded**: if missing, install JACK2 (available
 
 Local test launchers are maintained by `tools\refresh_test_exes.ps1` (generated into `test_exe\`, which is not committed).
 
+### shell2vst — standalone shell-unpacker tool
+
+`shell2vst.exe` (built from `shell2vst.vcxproj`) is a **standalone CLI tool fully decoupled from the main host**: it enumerates a shell plug-in (e.g. Waves WaveShell) and generates independent effects / launchers — useful for DAWs that cannot scan shells:
+
+```powershell
+# enumerate & generate all: launcher exe + VST2 wrapper + VST3 wrapper
+.\shell2vst.exe "D:\plugins\WaveShell1-VST3 16.6_x64.vst3" --out "D:\out"
+# only VST2 wrappers
+.\shell2vst.exe "D:\plugins\WaveShell1-VST3 16.6_x64.vst3" --dll
+```
+
+Options: `--exe|--dll|--vst3|--all` (default all), `--host <host.exe>` (template for launcher exes; default: a `vsthost*.exe` next to the tool), `--out <dir>` (default `standalone_<shell>`, output is grouped by channel folders like `Mono/`, `Stereo/`, `5.x/`). The wrapper templates (`wrapper\shell2vst2.dll` / `shell2vst3.dll`, built by `tools\build_wrappers.ps1`) are looked up next to the tool.
+
 ## Directory Layout
 
 ```
@@ -139,7 +156,8 @@ src/
   host/     IPlugin / Vst2Plugin / Vst3Plugin / SingleHost / AsioBackend / JackBackend / MidiInput / MidiOutput
   dsp/      LoudnessCore (BS.1770 loudness core)
   ui/       LevelMeterDlg / MeterSettingsDlg / GlobalSettingsDlg / MidiMapDialog / ClosePromptDlg / loudness_std
-  wrapper/  shell2vst2 / shell2vst3 (shell internal-effect wrappers)
+  tool/     shell2vst_main (standalone shell-unpacker CLI: shell2vst.exe)
+  wrapper/  shell2vst2 / shell2vst3 (shell wrapper DLL templates)
 tools/      refresh_test_exes.ps1 / pack.ps1 / build_wrappers.ps1 / make_icon.py
 res/        icons & bitmaps (icon.png → res/icon.ico, all sizes)
 Deprecated/ obsolete rack-era code / old project files (not built; kept for reference)
