@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{8E5A2C1F-4B7D-4A9E-8C3B-2F6D1A9E5C71}</ProjectGuid>
+    <RootNamespace>shell2vst</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(Platform)\$(Configuration)\</IntDir>
+    <TargetName>shell2vst</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;WIN32;_CONSOLE;VST_FORCE_DEPRECATED=0;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)VST\vst2sdk;$(ProjectDir)VST\vst2sdk\pluginterfaces\vst2.x;$(ProjectDir)VST\vst2sdk\public.sdk\source\vst2.x;$(ProjectDir)VST\vst3sdk;$(ProjectDir)VST\vst3sdk\base;$(ProjectDir)VST\vst3sdk\pluginterfaces;$(ProjectDir)VST\vst3sdk\base\thread\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;WIN32;_CONSOLE;VST_FORCE_DEPRECATED=0;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)VST\vst2sdk;$(ProjectDir)VST\vst2sdk\pluginterfaces\vst2.x;$(ProjectDir)VST\vst2sdk\public.sdk\source\vst2.x;$(ProjectDir)VST\vst3sdk;$(ProjectDir)VST\vst3sdk\base;$(ProjectDir)VST\vst3sdk\pluginterfaces;$(ProjectDir)VST\vst3sdk\base\thread\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;VST_FORCE_DEPRECATED=0;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)VST\vst2sdk;$(ProjectDir)VST\vst2sdk\pluginterfaces\vst2.x;$(ProjectDir)VST\vst2sdk\public.sdk\source\vst2.x;$(ProjectDir)VST\vst3sdk;$(ProjectDir)VST\vst3sdk\base;$(ProjectDir)VST\vst3sdk\pluginterfaces;$(ProjectDir)VST\vst3sdk\base\thread\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;VST_FORCE_DEPRECATED=0;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)VST\vst2sdk;$(ProjectDir)VST\vst2sdk\pluginterfaces\vst2.x;$(ProjectDir)VST\vst2sdk\public.sdk\source\vst2.x;$(ProjectDir)VST\vst3sdk;$(ProjectDir)VST\vst3sdk\base;$(ProjectDir)VST\vst3sdk\pluginterfaces;$(ProjectDir)VST\vst3sdk\base\thread\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\tool\shell2vst_main.cpp" />
+    <ClCompile Include="src\host\HostNaming.cpp" />
+    <ClCompile Include="src\host\SingleHost.cpp" />
+    <ClCompile Include="src\host\Vst2Plugin.cpp" />
+    <ClCompile Include="src\host\vst2\CEffect.cpp" />
+    <ClCompile Include="src\host\vst2\FxBank.cpp" />
+    <ClCompile Include="src\host\Vst3Plugin.cpp" />
+    <ClCompile Include="VST\vst3sdk\pluginterfaces\base\coreiids.cpp" />
+    <ClCompile Include="VST\vst3sdk\pluginterfaces\base\funknown.cpp" />
+    <ClCompile Include="VST\vst3sdk\base\source\baseiids.cpp" />
+    <ClCompile Include="VST\vst3sdk\base\source\fbuffer.cpp" />
+    <ClCompile Include="VST\vst3sdk\base\source\fdebug.cpp" />
+    <ClCompile Include="VST\vst3sdk\base\source\fdynlib.cpp" />
+    <ClCompile Include="VST\vst3sdk\base\source\fobject.cpp" />
+    <ClCompile Include="VST\vst3sdk\base\source\fstreamer.cpp" />
+    <ClCompile Include="VST\vst3sdk\base\source\fstring.cpp" />
+    <ClCompile Include="VST\vst3sdk\base\source\timer.cpp" />
+    <ClCompile Include="VST\vst3sdk\base\source\updatehandler.cpp" />
+    <ClCompile Include="VST\vst3sdk\base\thread\source\fcondition.cpp" />
+    <ClCompile Include="VST\vst3sdk\base\thread\source\flock.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\common\commoniids.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\common\commonstringconvert.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\common\memorystream.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\common\openurl.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\common\readfile.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\common\systemclipboard_win32.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\common\threadchecker_win32.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\vst\hosting\connectionproxy.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\vst\hosting\eventlist.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\vst\hosting\hostclasses.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\vst\hosting\module.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\vst\hosting\module_win32.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\vst\hosting\parameterchanges.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\vst\hosting\pluginterfacesupport.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\vst\hosting\plugprovider.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\vst\hosting\processdata.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\vst\utility\stringconvert.cpp" />
+    <ClCompile Include="VST\vst3sdk\public.sdk\source\vst\vstinitiids.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\host\IPlugin.h" />
+    <ClInclude Include="src\host\SingleHost.h" />
+    <ClInclude Include="src\host\HostNaming.h" />
+    <ClInclude Include="src\host\Vst2Plugin.h" />
+    <ClInclude Include="src\host\vst2\CEffect.h" />
+    <ClInclude Include="src\host\Vst3Plugin.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
