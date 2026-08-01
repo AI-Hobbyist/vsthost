@@ -1,0 +1,6 @@
+// vsthost.rc : 应用图标资源（最终交付，IDR_MAINFRAME = 128）
+//   供 exe 文件图标与托盘图标（MainWnd 的 IDR_APP_ICON=128）使用
+#define IDR_MAINFRAME 128
+#include <windows.h>
+
+IDR_MAINFRAME ICON "..\\..\\res\\icon.ico"
