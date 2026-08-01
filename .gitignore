@@ -53,6 +53,9 @@ Deprecated/Release/
 # ====== 工具 / 本地索引 ======
 .codegraph/
 
+# ====== 发布产物 ======
+release/
+
 # ====== 杂项 ======
 *.log
 Thumbs.db

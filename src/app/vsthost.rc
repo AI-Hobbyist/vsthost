@@ -1,6 +1,39 @@
-// vsthost.rc : 应用图标资源（最终交付，IDR_MAINFRAME = 128）
-//   供 exe 文件图标与托盘图标（MainWnd 的 IDR_APP_ICON=128）使用
+// vsthost.rc : 应用图标资源 + 版本信息（最终交付）
+//   IDR_MAINFRAME = 128：图标（exe/托盘，MainWnd 的 IDR_APP_ICON 同源）
+//   版本：Single VST Host 1.0.0.0
 #define IDR_MAINFRAME 128
 #include <windows.h>
 
 IDR_MAINFRAME ICON "..\\..\\res\\icon.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "vsthost project"
+            VALUE "FileDescription", "Single VST Host - one exe, one plugin"
+            VALUE "FileVersion", "1.0.0.0"
+            VALUE "InternalName", "vsthost"
+            VALUE "OriginalFilename", "vsthost.exe"
+            VALUE "ProductName", "Single VST Host"
+            VALUE "ProductVersion", "1.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

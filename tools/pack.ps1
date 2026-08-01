@@ -95,4 +95,13 @@ if ($needIni) {
     Write-Host "Created: $ini"
 }
 
+# ---- Bundle the Chinese manual (docs\*.md) into the output dir ----
+# (no non-ASCII literals here: PS 5.1 misreads BOM-less UTF-8 scripts)
+$manual = Get-ChildItem -Path (Join-Path $root "docs") -Filter *.md -File `
+          -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($manual) {
+    Copy-Item $manual.FullName (Join-Path $outDir $manual.Name) -Force
+    Write-Host "Bundled manual: $(Join-Path $outDir $manual.Name)"
+}
+
 Write-Host "Done. Double-click $target to auto-load."
