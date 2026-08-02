@@ -64,7 +64,7 @@ struct MidiMapEntry
 
 // 电平表（左右边缘垂直条，每通道条宽含间隙；高度随窗口高度自适应）
 #define METER_CH_W    22          // 每通道条宽 + 间隙（含下方数值框宽度）
-#define METER_MAX_CH  16          // 每侧最多显示的通道数（超出仅显示前 N）
+#define METER_BUF_CH  256         // 电平数据数组容量（每侧显示上限最大 255）
 
 // 插件编辑器宿主窗格：在此嵌入 VST2/VST3 编辑器
 class CPluginHostView : public CWnd
@@ -109,6 +109,7 @@ public:
     double SilenceReset() const { return m_silenceReset; }
     double SilenceThresh() const { return m_silenceThresh; }
     int    MeterRefreshMs() const { return m_meterRefreshMs; }
+    int    MeterMaxCh() const { return m_meterMaxCh; }   // 每侧显示上限（1~255）
     double PeakHoldSeconds() const { return m_peakHoldSeconds; }
     bool   ShowMeters() const { return m_bShowMeters; }
     bool   ShowPeakLine() const { return m_bPeakLine; }
@@ -120,7 +121,8 @@ public:
     void   OnMeterWindowClosed();        // 独立窗口销毁时回调
     void   ApplyMeterSettings(bool show, int refreshMs, double peakHold,
                               bool peakLine, bool valueBox, int std,
-                              double silence, double silenceThresh);
+                              double silence, double silenceThresh,
+                              int maxCh);
 
     // ---- CSV 响度日志 ----
     bool CsvLog() const { return m_bCsvLog; }
@@ -233,12 +235,13 @@ protected:
 
     // 电平表
     bool              m_bShowMeters;
-    volatile float    m_inLevel[32];   // 输入电平（峰值，ASIO 线程写/UI 读）
-    volatile float    m_outLevel[32];
+    volatile float    m_inLevel[METER_BUF_CH];  // 输入电平（峰值，ASIO 线程写/UI 读）
+    volatile float    m_outLevel[METER_BUF_CH];
 
     // 峰值保持（ASIO 线程写/UI 读；保持时长 UI 写）
     double            m_peakHoldSeconds;   // 0 = 关闭
     int               m_meterRefreshMs;    // 电平表刷新周期（ms，默认 50）
+    int               m_meterMaxCh;        // 每侧显示通道上限（1~255，默认 17 = 9.1.6）
     bool              m_bPeakLine;         // 峰值保持线显示
     bool              m_bValueBox;         // 底部数值框显示
     int               m_loudnessStd;       // 响度标准 0=BS.1770-4 1=EBU R128 2=ATSC
@@ -267,10 +270,10 @@ protected:
     // 托盘
     NOTIFYICONDATAW   m_nid;               // 托盘图标信息
     bool              m_bTrayVisible;      // 托盘图标是否显示
-    volatile float    m_inHold[32];        // 输入峰值保持值
-    volatile float    m_outHold[32];
-    volatile long     m_inHoldFrames[32];  // 保持累计帧数（计时）
-    volatile long     m_outHoldFrames[32];
+    volatile float    m_inHold[METER_BUF_CH];    // 输入峰值保持值
+    volatile float    m_outHold[METER_BUF_CH];
+    volatile long     m_inHoldFrames[METER_BUF_CH];  // 保持累计帧数（计时）
+    volatile long     m_outHoldFrames[METER_BUF_CH];
 
     // 测试信号（1kHz 正弦）
     volatile bool     m_bSineTest;     // ASIO 线程读，UI 线程写

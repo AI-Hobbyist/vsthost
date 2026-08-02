@@ -340,7 +340,7 @@ CMainFrame::CMainFrame()
       m_pJack(NULL), m_pBackend(NULL), m_backendMode(0),
       m_lastJackBufsizeTick(0),
       m_bSineTest(false), m_sinePhase(0.0), m_peakHoldSeconds(1.0),
-      m_meterRefreshMs(50), m_bPeakLine(true), m_bValueBox(true),
+      m_meterRefreshMs(50), m_meterMaxCh(17), m_bPeakLine(true), m_bValueBox(true),
       m_loudnessStd(0), m_silenceReset(10.0), m_silenceThresh(-70.0),
       m_pMeterDlg(NULL),
       m_bCsvLog(false), m_csvIntervalMs(1000), m_csvFile(NULL),
@@ -508,6 +508,12 @@ BOOL CMainFrame::Create()
     m_peakHoldSeconds = GetPrivateProfileIntW(L"View", L"peakhold", 10,
                                               AsioConfigPath().c_str()) / 10.0;
     ApplyPeakMenu();
+
+    /* 电平表每侧显示上限（[View] meterch，1~255，默认 17 = 9.1.6） */
+    m_meterMaxCh = GetPrivateProfileIntW(L"View", L"meterch", 17,
+                                         AsioConfigPath().c_str());
+    if (m_meterMaxCh < 1) m_meterMaxCh = 1;
+    if (m_meterMaxCh > 255) m_meterMaxCh = 255;
 
     /* 电平表刷新频率（[View] meterrefresh，ms，默认 50） */
     m_meterRefreshMs = GetPrivateProfileIntW(L"View", L"meterrefresh", 50,
@@ -2386,12 +2392,16 @@ void CMainFrame::ResetLoudness()
 /*****************************************************************************/
 void CMainFrame::ApplyMeterSettings(bool show, int refreshMs, double peakHold,
                                     bool peakLine, bool valueBox, int std,
-                                    double silence, double silenceThresh)
+                                    double silence, double silenceThresh,
+                                    int maxCh)
 {
     m_bPeakLine = peakLine;
     m_bValueBox = valueBox;
     m_meterRefreshMs = refreshMs;
     m_peakHoldSeconds = peakHold;
+    if (maxCh < 1) maxCh = 1;
+    if (maxCh > 255) maxCh = 255;
+    m_meterMaxCh = maxCh;
 
     /* 峰值保持时长变化时清零保持值 */
     memset((void *)m_inHold, 0, sizeof(m_inHold));
@@ -2407,6 +2417,8 @@ void CMainFrame::ApplyMeterSettings(bool show, int refreshMs, double peakHold,
     WritePrivateProfileStringW(L"View", L"metervalue", buf, AsioConfigPath().c_str());
     swprintf(buf, 16, L"%d", (int)(peakHold * 10));
     WritePrivateProfileStringW(L"View", L"peakhold", buf, AsioConfigPath().c_str());
+    swprintf(buf, 16, L"%d", m_meterMaxCh);
+    WritePrivateProfileStringW(L"View", L"meterch", buf, AsioConfigPath().c_str());
 
     ShowMeters(show);
     SetLoudnessStd(std);
@@ -2430,14 +2442,14 @@ int CMainFrame::MeterInCh() const
     if (m_pHost && m_pHost->IsLoaded() && m_pHost->Get()->IsInstrument())
         return 0;
     int n = m_pHost && m_pHost->IsLoaded() ? m_pHost->Get()->GetInputChannels() : 0;
-    if (n > METER_MAX_CH) n = METER_MAX_CH;
+    if (n > m_meterMaxCh) n = m_meterMaxCh;
     return n;
 }
 
 int CMainFrame::MeterOutCh() const
 {
     int n = m_pHost && m_pHost->IsLoaded() ? m_pHost->Get()->GetOutputChannels() : 0;
-    if (n > METER_MAX_CH) n = METER_MAX_CH;
+    if (n > m_meterMaxCh) n = m_meterMaxCh;
     return n;
 }
 
@@ -2462,14 +2474,14 @@ int CMainFrame::MeterInWidth() const
     if (m_pHost && m_pHost->IsLoaded() && m_pHost->Get()->IsInstrument())
         return 0;
     int n = m_pHost && m_pHost->IsLoaded() ? m_pHost->Get()->GetInputChannels() : 0;
-    if (n > METER_MAX_CH) n = METER_MAX_CH;
+    if (n > m_meterMaxCh) n = m_meterMaxCh;
     return n > 0 ? n * METER_CH_W : 0;   /* 纯通道条（无左侧标签列） */
 }
 
 int CMainFrame::MeterOutWidth() const
 {
     int n = m_pHost && m_pHost->IsLoaded() ? m_pHost->Get()->GetOutputChannels() : 0;
-    if (n > METER_MAX_CH) n = METER_MAX_CH;
+    if (n > m_meterMaxCh) n = m_meterMaxCh;
     return n > 0 ? n * METER_CH_W : 0;
 }
 
@@ -2610,8 +2622,8 @@ void CMainFrame::DrawMeters(CDC &dc)
             nIn = m_pHost->Get()->GetInputChannels();
         nOut = m_pHost->Get()->GetOutputChannels();
     }
-    if (nIn > METER_MAX_CH) nIn = METER_MAX_CH;
-    if (nOut > METER_MAX_CH) nOut = METER_MAX_CH;
+    if (nIn > m_meterMaxCh) nIn = m_meterMaxCh;
+    if (nOut > m_meterMaxCh) nOut = m_meterMaxCh;
 
     /* 左侧输入 */
     if (nIn > 0)
@@ -2785,7 +2797,7 @@ void CMainFrame::OnFileSaveExe()
 
 void CMainFrame::OnAppAbout()
 {
-    AfxMessageBox(_T("Single VST Host 1.6（vsthost）\n单插件 VST2/VST3 宿主（ASIO / JACK2 音频后端）\n\n本仓库的改造与代码由 AI（GitHub Copilot）辅助编写，\n衍生自 Arakula/vsthost（尊重原开发者）。"),
+    AfxMessageBox(_T("Single VST Host 1.7（vsthost）\n单插件 VST2/VST3 宿主（ASIO / JACK2 音频后端）\n\n本仓库的改造与代码由 AI（GitHub Copilot）辅助编写，\n衍生自 Arakula/vsthost（尊重原开发者）。"),
                   MB_OK | MB_ICONINFORMATION);
 }
 

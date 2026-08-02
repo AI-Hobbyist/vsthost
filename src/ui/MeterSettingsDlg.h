@@ -50,6 +50,7 @@ protected:
         MODE_SILENCE,           // 0~60 s 步进1
         MODE_THRESH,            // 位置0~50 -> -90~-40 LUFS
         MODE_CSV,               // 1~60 s 步进1（CSV 记录间隔）
+        MODE_CH,                // 1~255 通道数 步进1（每侧显示上限）
 
         IDC_MS_SHOW      = 0xF401,
         IDC_MS_PEAKLINE  = 0xF402,
@@ -64,12 +65,14 @@ protected:
         IDC_MS_ED_SIL     = 0xF503,
         IDC_MS_ED_THRESH  = 0xF504,
         IDC_MS_ED_CSV     = 0xF505,
+        IDC_MS_ED_CH      = 0xF506,
 
         IDC_MS_SL_REFRESH = 0xF511,
         IDC_MS_SL_PEAK    = 0xF512,
         IDC_MS_SL_SIL     = 0xF513,
         IDC_MS_SL_THRESH  = 0xF514,
         IDC_MS_SL_CSV     = 0xF515,
+        IDC_MS_SL_CH      = 0xF516,
 
         IDC_MS_OK         = IDOK,
         IDC_MS_CANCEL     = IDCANCEL

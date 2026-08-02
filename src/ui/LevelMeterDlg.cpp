@@ -244,8 +244,8 @@ void CLevelMeterDlg::DrawMeters(CDC &dc)
 
     int nIn = m_pOwner ? m_pOwner->MeterInCh() : 0;
     int nOut = m_pOwner ? m_pOwner->MeterOutCh() : 0;
-    if (nIn > 8) nIn = 8;
-    if (nOut > 8) nOut = 8;
+    /* 不再硬编码 8：通道数跟随主界面（MeterInCh/OutCh 已按 METER_MAX_CH 收敛），
+       与主界面峰值表一致，多通道插件可全部显示 */
 
     int std = m_pOwner ? m_pOwner->LoudnessStd() : 0;
     if (std < 0 || std >= g_loudnessStdCount) std = 0;
@@ -269,8 +269,12 @@ void CLevelMeterDlg::DrawMeters(CDC &dc)
     dc.SetBkMode(TRANSPARENT);
 
     /* ---- 左区：输入/输出峰值（左输入右输出，宽度按通道数比例） ---- */
-    int lw = (int)(rc.Width() * 0.44);
+    /* 左区宽度按通道数扩展（每通道基准 14px + 分隔），同时给右区响度留 ≥240 */
+    int lw = 16 + (nIn + nOut) * 14;
     if (lw < 160) lw = 160;
+    int lwMax = rc.Width() - 240;      /* 右区 220 + 边距 */
+    if (lw > lwMax) lw = lwMax;
+    if (lw < 160) lw = 160;            /* 极端窄窗口保底 */
     CRect lrc(rc.left, rc.top, rc.left + lw, rc.bottom);
     dc.FillSolidRect(lrc, RGB(20, 20, 20));
     dc.DrawEdge((LPRECT)(LPCRECT)lrc, EDGE_ETCHED, BF_RECT);
@@ -505,7 +509,8 @@ void CLevelMeterDlg::DrawMeters(CDC &dc)
     dc.SelectObject(pOld);
 }
 
-/* 在给定栏内横排竖条（每通道一个垂直小条，居中；每条下方独立数值框）
+/* 在给定栏内横排竖条（每通道一个垂直小条，居中；条够宽时下方独立数值框）
+   条宽随通道数自适应：通道多自动变窄，窄条（<14px）隐藏数值框避免文字溢出
    刻度：-60 ~ +12 dB（0dB 以上全红） */
 void CLevelMeterDlg::DrawChannelRow(CDC &dc, const CRect &rc, int nCh,
                                     const volatile float *lvl,
@@ -513,12 +518,13 @@ void CLevelMeterDlg::DrawChannelRow(CDC &dc, const CRect &rc, int nCh,
 {
     if (nCh <= 0)
         return;
-    const int valH = 16;                    /* 每条下方数值框高 */
-    int barBottom = rc.bottom - valH;
-    if (barBottom < rc.top + 4) barBottom = rc.top + 4;
-    int bw = rc.Width() / nCh;
+    int bw = rc.Width() / nCh;          /* 自适应条宽（多通道自动变窄） */
     if (bw > 22) bw = 22;
-    if (bw < 6) bw = 6;
+    if (bw < 3) bw = 3;                 /* 多通道仍保持可画 */
+    bool showVal = (bw >= 14);          /* 条够宽才显示数值框 */
+    const int valH = 16;                /* 每条下方数值框高 */
+    int barBottom = rc.bottom - (showVal ? valH : 0);
+    if (barBottom < rc.top + 4) barBottom = rc.top + 4;
     int x = rc.left + (rc.Width() - bw * nCh) / 2;
 
     /* dB 刻度：底 -60 dB，顶 +12 dB；红区 0~+12、黄 -9~0、绿 -60~-9 */
@@ -559,22 +565,25 @@ void CLevelMeterDlg::DrawChannelRow(CDC &dc, const CRect &rc, int nCh,
             if (hy < cr.top) hy = cr.top;
             dc.FillSolidRect(CRect(cr.left, hy, cr.right, hy + 2), RGB(255, 255, 255));
         }
-        /* 独立数值框：该通道当前电平 dB（无信号显示 -Inf） */
-        CRect vrc(x, barBottom, x + bw - 2, rc.bottom);
-        dc.FillSolidRect(vrc, RGB(12, 12, 12));
-        CFont *pOld = (CFont *)dc.SelectObject(&m_fontVal);
-        dc.SetTextColor(RGB(170, 200, 170));
-        CString s;
-        if (l <= 0.0001f)
-            s = _T("-Inf");
-        else if (db <= -60.0)
-            s = _T("-60");
-        else if (db >= 0.0)
-            s.Format(_T("+%.0f"), db);
-        else
-            s.Format(_T("%.0f"), db);
-        dc.TextOut(vrc.left + 2, vrc.top + 2, s);
-        dc.SelectObject(pOld);
+        /* 独立数值框：该通道当前电平 dB（无信号显示 -Inf；窄条时隐藏） */
+        if (showVal)
+        {
+            CRect vrc(x, barBottom, x + bw - 2, rc.bottom);
+            dc.FillSolidRect(vrc, RGB(12, 12, 12));
+            CFont *pOld = (CFont *)dc.SelectObject(&m_fontVal);
+            dc.SetTextColor(RGB(170, 200, 170));
+            CString s;
+            if (l <= 0.0001f)
+                s = _T("-Inf");
+            else if (db <= -60.0)
+                s = _T("-60");
+            else if (db >= 0.0)
+                s.Format(_T("+%.0f"), db);
+            else
+                s.Format(_T("%.0f"), db);
+            dc.TextOut(vrc.left + 2, vrc.top + 2, s);
+            dc.SelectObject(pOld);
+        }
         x += bw;
     }
 }

@@ -32,7 +32,7 @@ void BeginDlg(std::vector<BYTE> &v, DWORD style, DWORD exStyle,
 
 BEGIN_MESSAGE_MAP(CMeterSettingsDlg, CDialog)
     ON_WM_HSCROLL()
-    ON_CONTROL_RANGE(EN_KILLFOCUS, IDC_MS_ED_REFRESH, IDC_MS_ED_CSV,
+    ON_CONTROL_RANGE(EN_KILLFOCUS, IDC_MS_ED_REFRESH, IDC_MS_ED_CH,
                      &CMeterSettingsDlg::OnEditKillFocus)
     ON_BN_CLICKED(IDC_MS_CSV_BROWSE, &CMeterSettingsDlg::OnBrowseCsvFolder)
 END_MESSAGE_MAP()
@@ -42,7 +42,7 @@ CMeterSettingsDlg::CMeterSettingsDlg(CMainFrame *owner)
 {
     BeginDlg(m_tmpl, DS_SETFONT | DS_MODALFRAME | DS_CENTER |
                      WS_POPUP | WS_CAPTION | WS_SYSMENU,
-             0, 0, 250, 268, L"电平表设置");
+             0, 0, 250, 294, L"电平表设置");
     InitModalIndirect((LPCDLGTEMPLATE)m_tmpl.data());
 }
 
@@ -153,6 +153,12 @@ BOOL CMeterSettingsDlg::OnInitDialog()
     AddStatic(0xF41A, L"s", 204 * pxX, y, 40 * pxX, 12 * pxY);
     y += 22 * pxY;
 
+    AddStatic(0xF41C, L"通道上限", 12 * pxX, y, 62 * pxX, 12 * pxY);
+    AddSlider(IDC_MS_SL_CH, 78 * pxX, y, 82 * pxX, 16 * pxY);
+    AddEdit(IDC_MS_ED_CH, 166 * pxX, y, 34 * pxX, 14 * pxY);
+    AddStatic(0xF41D, L"ch", 204 * pxX, y, 40 * pxX, 12 * pxY);
+    y += 22 * pxY;
+
     AddStatic(0xF41B, L"输出文件夹", 12 * pxX, y, 62 * pxX, 12 * pxY);
     ::CreateWindowW(L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL |
                     ES_READONLY, 78 * pxX, y, 130 * pxX, 14 * pxY, m_hWnd,
@@ -203,6 +209,10 @@ BOOL CMeterSettingsDlg::OnInitDialog()
     if (sl) { sl->SetRange(1, 60, TRUE); sl->SetTicFreq(5); sl->SetPos(m_pOwner ? m_pOwner->CsvIntervalMs() / 1000 : 1); if (sl->GetPos() < 1) sl->SetPos(1); }
     SyncSliderToEdit(IDC_MS_SL_CSV, IDC_MS_ED_CSV, MODE_CSV);
 
+    sl = (CSliderCtrl *)GetDlgItem(IDC_MS_SL_CH);
+    if (sl) { sl->SetRange(1, 255, TRUE); sl->SetTicFreq(16); sl->SetPos(m_pOwner ? m_pOwner->MeterMaxCh() : 17); if (sl->GetPos() < 1) sl->SetPos(1); }
+    SyncSliderToEdit(IDC_MS_SL_CH, IDC_MS_ED_CH, MODE_CH);
+
     CComboBox *p = (CComboBox *)GetDlgItem(IDC_MS_STD);
     if (p)
     {
@@ -248,6 +258,7 @@ bool CMeterSettingsDlg::ParseVal(const CString &s, int mode, int &sliderPos)
     case MODE_PEAK:    minV = 0;   maxV = 5;   step = 0.5; break;
     case MODE_SILENCE: minV = 0;   maxV = 60;  step = 1;   break;
     case MODE_CSV:     minV = 1;   maxV = 60;  step = 1;   break;
+    case MODE_CH:      minV = 1;   maxV = 255; step = 1;   break;
     default:           minV = -90; maxV = -40; step = 1;   break;
     }
     if (v < minV) v = minV;
@@ -260,6 +271,7 @@ bool CMeterSettingsDlg::ParseVal(const CString &s, int mode, int &sliderPos)
     case MODE_PEAK:    sliderPos = (int)(v * 10); break;
     case MODE_SILENCE: sliderPos = (int)v; break;
     case MODE_CSV:     sliderPos = (int)v; break;
+    case MODE_CH:      sliderPos = (int)v; break;
     default:           sliderPos = (int)(v + 90); break;
     }
     return true;
@@ -277,6 +289,7 @@ void CMeterSettingsDlg::SyncSliderToEdit(int sliderId, int editId, int mode)
     case MODE_PEAK:    s.Format(_T("%.1f"), pos * 0.1); break;
     case MODE_SILENCE: s.Format(_T("%d"), pos); break;
     case MODE_CSV:     s.Format(_T("%d"), pos); break;
+    case MODE_CH:      s.Format(_T("%d"), pos); break;
     default:           s.Format(_T("%d"), pos - 90); break;
     }
     CWnd *ed = GetDlgItem(editId);
@@ -303,7 +316,7 @@ void CMeterSettingsDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar *pScrollBa
     if (pScrollBar)
     {
         int id = pScrollBar->GetDlgCtrlID();
-        if (id >= IDC_MS_SL_REFRESH && id <= IDC_MS_SL_THRESH)
+        if (id >= IDC_MS_SL_REFRESH && id <= IDC_MS_SL_CH)
         {
             int mode = id - IDC_MS_SL_REFRESH;
             SyncSliderToEdit(id, id - 0x10, mode);
@@ -314,7 +327,7 @@ void CMeterSettingsDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar *pScrollBa
 
 void CMeterSettingsDlg::OnEditKillFocus(UINT nID)
 {
-    if (nID >= IDC_MS_ED_REFRESH && nID <= IDC_MS_ED_CSV)
+    if (nID >= IDC_MS_ED_REFRESH && nID <= IDC_MS_ED_CH)
     {
         int mode = nID - IDC_MS_ED_REFRESH;
         SyncEditToSlider(nID, nID + 0x10, mode);
@@ -330,7 +343,7 @@ void CMeterSettingsDlg::OnOK()
     }
 
     /* 先同步输入框（若正在编辑） */
-    for (int m = 0; m <= MODE_CSV; m++)
+    for (int m = 0; m <= MODE_CH; m++)
         SyncEditToSlider(IDC_MS_ED_REFRESH + m, IDC_MS_SL_REFRESH + m, m);
 
     bool show = ((CButton *)GetDlgItem(IDC_MS_SHOW))->GetCheck() == BST_CHECKED;
@@ -352,6 +365,12 @@ void CMeterSettingsDlg::OnOK()
     if (sl) csvInterval = sl->GetPos();
     if (csvInterval < 1) csvInterval = 1;
 
+    int maxCh = 17;
+    sl = (CSliderCtrl *)GetDlgItem(IDC_MS_SL_CH);
+    if (sl) maxCh = sl->GetPos();
+    if (maxCh < 1) maxCh = 1;
+    if (maxCh > 255) maxCh = 255;
+
     bool csvLog = ((CButton *)GetDlgItem(IDC_MS_CSVLOG))->GetCheck() == BST_CHECKED;
     CString csvDir;
     GetDlgItemTextW(IDC_MS_CSVFOLDER, csvDir.GetBuffer(1024), 1024);
@@ -364,7 +383,7 @@ void CMeterSettingsDlg::OnOK()
     if (std >= g_loudnessStdCount) std = g_loudnessStdCount - 1;
 
     m_pOwner->ApplyMeterSettings(show, refreshMs, peakHold, peakline, valuebox,
-                                 std, sil, th);
+                                 std, sil, th, maxCh);
     m_pOwner->ApplyCsvSettings(csvLog, csvInterval * 1000,
                                (const wchar_t *)csvDir);
 
