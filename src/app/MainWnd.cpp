@@ -27,6 +27,10 @@
 
 #include <set>
 
+/* rand_s：Windows 系统安全随机（基于 RtlGenRandom），在此显式声明
+   （避免 _CRT_RAND_S / <stdlib.h> 包含顺序问题） */
+extern "C" int __cdecl rand_s(unsigned *randomValue);
+
 /*****************************************************************************/
 /* JACK 客户端名：超过 27 字节时中间省略（...），保证末尾数字序号后缀        */
 /* （_1、_2…）始终可见；截断按 UTF-8 边界进行，避免切半多字节字符。          */
@@ -154,34 +158,26 @@ static std::string AbbreviateClientName(const std::string &name)
     return out + suffix;
 }
 
-/* Client_ 确定性兜底名：以插件全名为种子，固定生成 20 位小写字母
-   （7 + 20 = 27 字节，恰好 ≤ 上限；同一插件名每次得到同一名字，
-   保证 fallback 到兜底后仅首次生成、后续固定） */
-static std::string RandomClientName(const std::string &seed)
+/* Client_ 真随机兜底名：完全真随机生成 20 位小写字母（7 + 20 = 27 字节，
+   恰好 ≤ 上限），不依赖插件名；同一插件实例名字的固定性由 ini 持久化
+   映射（首次生成后读 ini 复用）保证 */
+static std::string RandomClientName()
 {
-    /* FNV-1a 初值 */
-    unsigned long long h = 1469598103934665603ULL;
-    for (size_t i = 0; i < seed.size(); i++)
-    {
-        h ^= (unsigned char)seed[i];
-        h *= 1099511628211ULL;
-    }
     const char *alphabet = "abcdefghijklmnopqrstuvwxyz";
     std::string r = "Client_";
     for (int i = 0; i < 20; i++)
     {
-        /* murmur3 finalizer 混合，保证位分布均匀 */
-        h ^= h >> 33; h *= 0xff51afd7ed558ccdULL;
-        h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ULL;
-        h ^= h >> 33;
-        r += alphabet[h % 26];
+        unsigned v = 0;
+        if (rand_s(&v) != 0)
+            v = (unsigned)::GetTickCount() + (unsigned)i;   /* 理论不会失败 */
+        r += alphabet[v % 26];
     }
     return r;
 }
 
-/* JACK 客户端名 fallback：全名 → 省略号 → 缩写 → 确定性随机兜底。
-   超 27 字节或撞名（used 已包含）即降级下一级；随机兜底以插件名为
-   种子确定性生成（撞名时换变体重试，至多 8 次）。 */
+/* JACK 客户端名 fallback：全名 → 省略号 → 缩写 → 真随机兜底。
+   超 27 字节或撞名（used 已包含）即降级下一级；随机兜底完全真随机
+   （撞名时重新生成，至多 8 次），名字固定性由 ini 持久化保证。 */
 static std::string MakeJackClientName(const std::string &fullName,
                                       const std::set<std::string> &used)
 {
@@ -207,14 +203,14 @@ static std::string MakeJackClientName(const std::string &fullName,
             return ab;
     }
 
-    /* 4. 确定性随机兜底 */
+    /* 4. 真随机兜底（撞名时重新生成，至多 8 次） */
     for (int k = 0; k < 8; k++)
     {
-        std::string rn = RandomClientName(fullName + std::string(1, (char)('A' + k)));
+        std::string rn = RandomClientName();
         if (!inUse(rn))
             return rn;
     }
-    return RandomClientName(fullName);
+    return RandomClientName();
 }
 
 /*****************************************************************************/
@@ -969,7 +965,7 @@ bool CMainFrame::StartJackAudio()
        "插件名_1"）；无插件时用 exe 主干名。JACK 客户端名上限 27 字节。
        先查 ini 持久化映射 [JackNames] <插件原全名_序号>=<最终客户端名>
        （首次生成后固定）；无记录或撞名/超限时按 fallback 链重新生成：
-       全名 → 省略号 → 缩写 → 确定性随机兜底（种子=插件名），
+       全名 → 省略号 → 缩写 → 真随机兜底（首次生成后靠 ini 固定），
        无论落在哪一级都写回 ini 持久保存。 */
     std::wstring hostName = (m_pHost && m_pHost->IsLoaded())
                                 ? m_pHost->GetStateBase()
@@ -2776,7 +2772,7 @@ void CMainFrame::OnFileSaveExe()
 
 void CMainFrame::OnAppAbout()
 {
-    AfxMessageBox(_T("Single VST Host 1.3（vsthost）\n单插件 VST2/VST3 宿主（ASIO / JACK2 音频后端）\n\n本仓库的改造与代码由 AI（GitHub Copilot）辅助编写，\n衍生自 Arakula/vsthost（尊重原开发者）。"),
+    AfxMessageBox(_T("Single VST Host 1.4（vsthost）\n单插件 VST2/VST3 宿主（ASIO / JACK2 音频后端）\n\n本仓库的改造与代码由 AI（GitHub Copilot）辅助编写，\n衍生自 Arakula/vsthost（尊重原开发者）。"),
                   MB_OK | MB_ICONINFORMATION);
 }
 
