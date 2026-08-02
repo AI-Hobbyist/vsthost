@@ -116,6 +116,25 @@ bool CJackBackend::ServerAvailable()
 }
 
 /*****************************************************************************/
+/* SanitizePortName : 清洗 JACK 端口名（':' 是 client:port 分隔符不可用；    */
+/*   空白/控制/路径字符替换为 '_'），并截断到 cap-1 字节                      */
+/*****************************************************************************/
+static void SanitizePortName(const std::string &src, char *out, int cap)
+{
+    int w = 0;
+    for (size_t i = 0; i < src.size() && w < cap - 1; i++)
+    {
+        unsigned char c = (unsigned char)src[i];
+        if (c == ':' || c == '\\' || c == '/' || c == ' ' || c == '\t' ||
+            c == '\r' || c == '\n' || c < 0x20)
+            out[w++] = '_';
+        else
+            out[w++] = (char)c;
+    }
+    out[w] = '\0';
+}
+
+/*****************************************************************************/
 /* GetUsedClientNames : 查询服务器上已占用的客户端名（端口名 "client:port"）  */
 /*   解析出 client 部分去重；供 JACK 客户端名撞名检测（Open 前调用）           */
 /*****************************************************************************/
@@ -183,11 +202,15 @@ bool CJackBackend::Open(const char *clientName, double wantRate, int wantBufSize
     m_inCh  = (wantIn  > 0 && wantIn  <= JACKBACKEND_MAX_CH) ? wantIn  : 0;
     m_outCh = (wantOut > 0 && wantOut <= JACKBACKEND_MAX_CH) ? wantOut : 0;
 
-    /* 音频端口（数量 = 插件通道数） */
+    /* 音频端口（数量 = 插件通道数；端口名优先用插件真实总线/pin 名，
+       拿不到回退默认命名 in_N / out_N） */
     char nm[64];
     for (int i = 0; i < m_inCh; i++)
     {
-        sprintf(nm, "in_%d", i + 1);
+        if (i < (int)m_inPortNames.size() && !m_inPortNames[i].empty())
+            SanitizePortName(m_inPortNames[i], nm, sizeof(nm));
+        else
+            sprintf(nm, "in_%d", i + 1);
         m_inPorts[i] = jack_port_register(m_client, nm, JACK_DEFAULT_AUDIO_TYPE,
                                           JackPortIsInput, 0);
         if (!m_inPorts[i])
@@ -198,7 +221,10 @@ bool CJackBackend::Open(const char *clientName, double wantRate, int wantBufSize
     }
     for (int i = 0; i < m_outCh; i++)
     {
-        sprintf(nm, "out_%d", i + 1);
+        if (i < (int)m_outPortNames.size() && !m_outPortNames[i].empty())
+            SanitizePortName(m_outPortNames[i], nm, sizeof(nm));
+        else
+            sprintf(nm, "out_%d", i + 1);
         m_outPorts[i] = jack_port_register(m_client, nm, JACK_DEFAULT_AUDIO_TYPE,
                                            JackPortIsOutput, 0);
         if (!m_outPorts[i])

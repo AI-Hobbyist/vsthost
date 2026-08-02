@@ -34,6 +34,12 @@ public:
     virtual bool   WantMidiInput()  const = 0; // VST2 receiveVstMidiEvent / VST3 事件总线
     virtual bool   WantMidiOutput() const = 0; // 插件是否能输出事件
 
+    // 音频端口名（JACK 端口名用）：idx 为该侧第 idx 通道（0 起），input=true 查输入；
+    // 返回 true 并填入真实端口名（VST3 总线名 / VST2 引脚 label，最多 cap 字节）；
+    // false 表示拿不到，上层回退默认命名（in_N / out_N）
+    virtual bool   GetChannelName(int idx, bool input, char *out, int cap) const
+    { return false; }
+
     // MIDI 输出事件（插件产生，Process 后收集；默认无输出）
     struct PluginMidiEvent { unsigned char d[3]; int len; };
     // 收集本块插件产生的 MIDI 输出事件（实时线程，Process 后调用）；

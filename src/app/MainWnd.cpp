@@ -26,6 +26,7 @@
 #include "../host/MidiInput.h"
 
 #include <set>
+#include <vector>
 
 /* rand_s：Windows 系统安全随机（基于 RtlGenRandom），在此显式声明
    （避免 _CRT_RAND_S / <stdlib.h> 包含顺序问题） */
@@ -960,6 +961,18 @@ bool CMainFrame::StartJackAudio()
     /* MIDI 端口随插件能力（VST2 receiveVstMidiEvent / VST3 事件总线） */
     m_pJack->SetMidiPorts(p->WantMidiInput(), p->WantMidiOutput());
     m_pJack->SetNotifyWindow(GetSafeHwnd());
+
+    /* 真实端口名：优先用插件总线/pin 名（VST3 bus 名 / VST2 pin label），
+       拿不到则留空 → JACK 回退默认命名 in_N / out_N */
+    {
+        std::vector<std::string> inNames(in), outNames(out);
+        char pn[128];
+        for (int i = 0; i < in && p->GetChannelName(i, true, pn, sizeof(pn)); i++)
+            inNames[i] = pn;
+        for (int i = 0; i < out && p->GetChannelName(i, false, pn, sizeof(pn)); i++)
+            outNames[i] = pn;
+        m_pJack->SetPortNames(inNames, outNames);
+    }
 
     /* 客户端名：优先用当前插件名（GetStateBase = 窗口标题，含实例序号
        "插件名_1"）；无插件时用 exe 主干名。JACK 客户端名上限 27 字节。
@@ -2772,7 +2785,7 @@ void CMainFrame::OnFileSaveExe()
 
 void CMainFrame::OnAppAbout()
 {
-    AfxMessageBox(_T("Single VST Host 1.4（vsthost）\n单插件 VST2/VST3 宿主（ASIO / JACK2 音频后端）\n\n本仓库的改造与代码由 AI（GitHub Copilot）辅助编写，\n衍生自 Arakula/vsthost（尊重原开发者）。"),
+    AfxMessageBox(_T("Single VST Host 1.5（vsthost）\n单插件 VST2/VST3 宿主（ASIO / JACK2 音频后端）\n\n本仓库的改造与代码由 AI（GitHub Copilot）辅助编写，\n衍生自 Arakula/vsthost（尊重原开发者）。"),
                   MB_OK | MB_ICONINFORMATION);
 }
 

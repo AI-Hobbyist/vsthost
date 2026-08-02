@@ -35,7 +35,7 @@
 | **响度电平表（BS.1770）** | 独立窗口的 M/S/I/LRA/True Peak、EBU R128 / ATSC 等标准、CSV 响度日志 |
 | **MIDI CC→参数映射** | `MidiMapDialog`（VST2 / VST3） |
 | **托盘/关闭行为/全局设置** | 最小化到托盘、关闭行为可配、全局设置对话框 |
-| **应用图标/版本/中文说明书** | 全尺寸图标、`VERSIONINFO`（1.4.0.0）、打包自动附带 `docs/说明书.md` |
+| **应用图标/版本/中文说明书** | 全尺寸图标、`VERSIONINFO`（1.5.0.0）、打包自动附带 `docs/说明书.md` |
 | **`shell2vst` 独立工具** | 命令行工具把 Shell 效果器拆成独立 exe/dll/vst3——与主程序完全解耦 |
 | **打包工具链** | `tools/pack.ps1`、`refresh_test_exes.ps1`、`build_wrappers.ps1`、`make_icon.py` |
 | **双语 README + .gitignore** | 英文（默认）+ 中文；忽略编译/测试/第三方 SDK 产物 |

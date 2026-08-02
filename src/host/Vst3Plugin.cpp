@@ -28,6 +28,27 @@
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "pluginterfaces/base/funknownimpl.h"
 
+/* BusNameToUtf8 : BusInfo.name（String128 = TChar[128]，TChar 为 char16_t，UTF-16）转 UTF-8。
+   Windows 下 wchar_t 同为 16 位 UTF-16，先逐元素复制到 wchar_t 缓冲再转换 */
+static std::string BusNameToUtf8(const Steinberg::Vst::String128 &name)
+{
+    wchar_t wname[128];
+    for (int i = 0; i < 128; i++)
+    {
+        wname[i] = (wchar_t)name[i];
+        if (name[i] == 0)
+            break;
+    }
+    int n = WideCharToMultiByte(CP_UTF8, 0, wname, -1, NULL, 0, NULL, NULL);
+    if (n > 1)
+    {
+        std::string s((size_t)n - 1, '\0');
+        WideCharToMultiByte(CP_UTF8, 0, wname, -1, &s[0], n, NULL, NULL);
+        return s;
+    }
+    return std::string();
+}
+
 /*===========================================================================*/
 /* IPlugFrame 实现：插件经 resizeView 请求新编辑器尺寸                        */
 /*===========================================================================*/
@@ -243,6 +264,8 @@ void Vst3Plugin::QueryBusses()
 {
     m_inCh = m_outCh = 0;
     m_nEventIn = m_nEventOut = 0;
+    m_inBuses.clear();
+    m_outBuses.clear();
     if (!m_component)
         return;
 
@@ -251,17 +274,57 @@ void Vst3Plugin::QueryBusses()
     {
         Steinberg::Vst::BusInfo info;
         if (m_component->getBusInfo(Steinberg::Vst::kAudio, Steinberg::Vst::kInput, i, info) == Steinberg::kResultOk)
+        {
             m_inCh += info.channelCount;
+            AudioBusRec b;
+            b.name = BusNameToUtf8(info.name);        /* 真实总线名（可能为空） */
+            b.channelCount = info.channelCount;
+            m_inBuses.push_back(b);
+        }
     }
     n = m_component->getBusCount(Steinberg::Vst::kAudio, Steinberg::Vst::kOutput);
     for (int i = 0; i < n; i++)
     {
         Steinberg::Vst::BusInfo info;
         if (m_component->getBusInfo(Steinberg::Vst::kAudio, Steinberg::Vst::kOutput, i, info) == Steinberg::kResultOk)
+        {
             m_outCh += info.channelCount;
+            AudioBusRec b;
+            b.name = BusNameToUtf8(info.name);
+            b.channelCount = info.channelCount;
+            m_outBuses.push_back(b);
+        }
     }
     m_nEventIn = m_component->getBusCount(Steinberg::Vst::kEvent, Steinberg::Vst::kInput);
     m_nEventOut = m_component->getBusCount(Steinberg::Vst::kEvent, Steinberg::Vst::kOutput);
+}
+
+/*****************************************************************************/
+/* GetChannelName : 返回第 idx 通道的真实端口名（所属音频总线的 name；多通道 */
+/*   总线加 _N 后缀保证 JACK 端口名唯一）；总线名为空或找不到则返回 false    */
+/*****************************************************************************/
+bool Vst3Plugin::GetChannelName(int idx, bool input, char *out, int cap) const
+{
+    if (!out || cap <= 0)
+        return false;
+    const std::vector<AudioBusRec> &buses = input ? m_inBuses : m_outBuses;
+    int off = 0;
+    for (size_t b = 0; b < buses.size(); b++)
+    {
+        int cnt = buses[b].channelCount;
+        if (idx >= off && idx < off + cnt)
+        {
+            const std::string &n = buses[b].name;
+            if (n.empty())
+                return false;
+            std::string full = (cnt > 1) ? n + "_" + std::to_string(idx - off + 1) : n;
+            strncpy(out, full.c_str(), (size_t)cap - 1);
+            out[cap - 1] = '\0';
+            return true;
+        }
+        off += cnt;
+    }
+    return false;
 }
 
 /*****************************************************************************/

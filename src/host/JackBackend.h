@@ -13,6 +13,7 @@
 #include <windows.h>
 #include <string>
 #include <set>
+#include <vector>
 
 #include <jack/jack.h>
 #include <jack/midiport.h>
@@ -52,6 +53,11 @@ public:
 
     // 通知窗口（buffer size / shutdown 事件发给它，UI 线程处理）
     void SetNotifyWindow(HWND h) { m_hNotify = h; }
+
+    // 音频端口名（Open 前设置）：第 i 个输入/输出通道的真实端口名（来自插件
+    // 总线/pin 名）；空字符串回退默认命名 in_N / out_N
+    void SetPortNames(const std::vector<std::string> &in, const std::vector<std::string> &out)
+    { m_inPortNames = in; m_outPortNames = out; }
 
     // process 回调线程内：把插件产生的 MIDI 输出事件写入 midi_out 端口
     // （须在 JACK process 回调中调用；midi_out 缓冲已 clear，可重复取缓冲）
@@ -95,6 +101,7 @@ private:
     bool m_midiIn, m_midiOut;      // 是否注册 MIDI 端口
     std::string m_clientName;      // 实际客户端名（UTF-8/ANSI）
     HWND m_hNotify;
+    std::vector<std::string> m_inPortNames, m_outPortNames;  // 真实端口名（空=回退默认）
 
     jack_port_t *m_inPorts[JACKBACKEND_MAX_CH];
     jack_port_t *m_outPorts[JACKBACKEND_MAX_CH];

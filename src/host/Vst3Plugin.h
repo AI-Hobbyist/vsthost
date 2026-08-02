@@ -48,6 +48,7 @@ public:
     int    GetOutputChannels() const override;
     bool   WantMidiInput()  const override;
     bool   WantMidiOutput() const override;
+    bool   GetChannelName(int idx, bool input, char *out, int cap) const override;
     bool   IsInstrument() const override;
     void   SendMidiIn(const unsigned char *data, int len) override;
     int    CollectMidiOut(PluginMidiEvent *out, int max) override;
@@ -100,6 +101,10 @@ protected:
     // 总线能力
     int   m_inCh, m_outCh;          // 音频输入/输出通道总数
     int   m_nEventIn, m_nEventOut;  // 事件（MIDI）输入/输出总线数
+
+    // 音频总线名（QueryBusses 收集，JACK 端口名用）
+    struct AudioBusRec { std::string name; int channelCount; };
+    std::vector<AudioBusRec> m_inBuses, m_outBuses;
 
     double m_dSampleRate;
     int    m_nBlockSize;

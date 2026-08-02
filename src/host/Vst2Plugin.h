@@ -33,6 +33,7 @@ public:
     int    GetOutputChannels() const override;
     bool   WantMidiInput()  const override;
     bool   WantMidiOutput() const override;
+    bool   GetChannelName(int idx, bool input, char *out, int cap) const override;
     bool   IsInstrument() const override;
     void   SendMidiIn(const unsigned char *data, int len) override;
     int    CollectMidiOut(PluginMidiEvent *out, int max) override;

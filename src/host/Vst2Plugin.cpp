@@ -196,6 +196,25 @@ void Vst2Plugin::RefreshName()
         strncpy(m_szName, m_szPath, sizeof(m_szName) - 1);   /* 回退：模块名 */
 }
 
+/*****************************************************************************/
+/* GetChannelName : 返回第 idx 通道的真实端口名（effGetInput/OutputProperties */
+/*   的引脚 label；label 为空或插件不支持则返回 false → 上层回退默认命名）   */
+/*****************************************************************************/
+bool Vst2Plugin::GetChannelName(int idx, bool input, char *out, int cap) const
+{
+    if (!out || cap <= 0 || !m_pEff || !m_pEff->pEffect)
+        return false;
+    VstPinProperties props;
+    memset(&props, 0, sizeof(props));
+    long rc = input ? m_pEff->EffGetInputProperties(idx, &props)
+                    : m_pEff->EffGetOutputProperties(idx, &props);
+    if (rc != 1 || props.label[0] == '\0')
+        return false;
+    strncpy(out, props.label, (size_t)cap - 1);
+    out[cap - 1] = '\0';
+    return true;
+}
+
 const char *Vst2Plugin::GetName() const
 {
     return m_szName;
