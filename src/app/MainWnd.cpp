@@ -26,6 +26,195 @@
 #include "../host/MidiInput.h"
 
 /*****************************************************************************/
+/* JACK 客户端名：超过 27 字节时中间省略（...），保证末尾数字序号后缀        */
+/* （_1、_2…）始终可见；截断按 UTF-8 边界进行，避免切半多字节字符。          */
+/*****************************************************************************/
+static std::string TruncateJackClientName(const std::string &name)
+{
+    const size_t kMaxLen = 27;      /* JACK 客户端名上限（含结尾 NUL） */
+    const char *kEllipsis = "...";
+    const size_t kEllLen = 3;
+
+    if (name.size() <= kMaxLen)
+        return name;
+
+    /* 数字序号后缀：末尾最后一个 "_" 之后全是数字（如 "_1"、"_12"） */
+    size_t numStart = name.size();
+    while (numStart > 0 && name[numStart - 1] >= '0' && name[numStart - 1] <= '9')
+        numStart--;
+    bool hasSuffix = (numStart < name.size() && numStart > 0 && name[numStart - 1] == '_');
+    size_t suffixStart = hasSuffix ? numStart - 1 : name.size();   /* 指向 "_" */
+    std::string suffix = name.substr(suffixStart);                 /* 完整保留 */
+
+    /* 剩余空间 = 上限 - 后缀 - 省略号，头部/尾部各半 */
+    size_t budget = (kMaxLen > suffix.size() + kEllLen)
+                        ? kMaxLen - suffix.size() - kEllLen : 1;
+    size_t tailMax = budget / 2;
+    size_t tailLen = (tailMax < suffixStart) ? tailMax : suffixStart;
+
+    /* 尾部起点须落在字符边界（向前回退到非续字节） */
+    size_t tailStart = suffixStart - tailLen;
+    while (tailStart < suffixStart &&
+           ((unsigned char)name[tailStart] & 0xC0) == 0x80)
+        tailStart++;
+
+    /* 头部截断：不切半多字节字符，并去掉尾部空白 */
+    size_t headLen = budget - tailLen;
+    size_t n = (headLen < name.size()) ? headLen : name.size();
+    while (n > 0 && ((unsigned char)name[n] & 0xC0) == 0x80)
+        n--;
+    while (n > 0 && (name[n - 1] == ' ' || name[n - 1] == '\t'))
+        n--;
+
+    return name.substr(0, n) + kEllipsis + name.substr(tailStart);
+}
+
+/*****************************************************************************/
+/* JACK 客户端名缩写：按空白拆词，每词取首字母（大写），词内 "_数字/点" 段  */
+/* 原样保留（如 Stereo_7.1 -> S_7.1），词间用 "_" 连接，末尾序号后缀保留：  */
+/*   "DTS Neural UpMix Stereo_7.1_1" -> "D_N_U_S_7.1_1"                      */
+/*****************************************************************************/
+static std::string AbbrevWord(const char *s, size_t len)
+{
+    std::string r;
+    if (len == 0)
+        return r;
+
+    /* 取首个字符作为缩写核心（字母转大写，数字/符号原样，中文取整字符） */
+    unsigned char c = (unsigned char)s[0];
+    if (c < 0x80 && ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')))
+        r += (char)(c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c);
+    else if (c < 0x80)
+        r += (char)c;
+    else
+    {
+        int clen = 1;
+        if ((c & 0xE0) == 0xC0) clen = 2;
+        else if ((c & 0xF0) == 0xE0) clen = 3;
+        else if ((c & 0xF8) == 0xF0) clen = 4;
+        r.append(s, (size_t)clen);
+    }
+
+    /* 词内 "_数字/点" 段原样保留（如 "_7.1"） */
+    size_t i = 1;
+    while (i < len)
+    {
+        if (s[i] == '_')
+        {
+            size_t j = i + 1;
+            while (j < len && ((s[j] >= '0' && s[j] <= '9') || s[j] == '.'))
+                j++;
+            if (j > i + 1)
+            {
+                r.append(s + i, j - i);
+                i = j;
+                continue;
+            }
+        }
+        i++;
+    }
+    return r;
+}
+
+static std::string AbbreviateClientName(const std::string &name)
+{
+    /* 末尾数字序号后缀（"_1" 等）完整保留 */
+    size_t numStart = name.size();
+    while (numStart > 0 && name[numStart - 1] >= '0' && name[numStart - 1] <= '9')
+        numStart--;
+    bool hasSuffix = (numStart < name.size() && numStart > 0 && name[numStart - 1] == '_');
+    size_t suffixStart = hasSuffix ? numStart - 1 : name.size();
+    std::string suffix = name.substr(suffixStart);
+
+    std::string out;
+    size_t i = 0;
+    size_t end = suffixStart;
+    while (i < end)
+    {
+        while (i < end && (name[i] == ' ' || name[i] == '\t' ||
+                           name[i] == '\r' || name[i] == '\n'))
+            i++;
+        if (i >= end)
+            break;
+        size_t j = i;
+        while (j < end && name[j] != ' ' && name[j] != '\t' &&
+               name[j] != '\r' && name[j] != '\n')
+            j++;
+        std::string ab = AbbrevWord(name.c_str() + i, j - i);
+        if (!ab.empty())
+        {
+            if (!out.empty())
+                out += '_';
+            out += ab;
+        }
+        i = j;
+    }
+    return out + suffix;
+}
+
+/* Client_ 随机字符串兜底（7 + 20 小写字母 = 27 字节，恰好 ≤ 上限） */
+static std::string RandomClientName()
+{
+    static bool seeded = false;
+    if (!seeded)
+    {
+        srand((unsigned)(::GetTickCount() ^ ::GetCurrentProcessId()));
+        seeded = true;
+    }
+    const char *alphabet = "abcdefghijklmnopqrstuvwxyz";
+    std::string r = "Client_";
+    for (int i = 0; i < 20; i++)
+        r += alphabet[rand() % 26];
+    return r;
+}
+
+struct JackClientNameResult
+{
+    std::string name;    /* 最终客户端名 */
+    bool        random;  /* 是否落入 Client_随机 兜底 */
+};
+
+/* JACK 客户端名 fallback：全名 → 缩写 → 省略号 → Client_随机字符串 */
+static JackClientNameResult MakeJackClientName(const std::string &fullName)
+{
+    const size_t kMaxLen = 27;      /* JACK 客户端名上限（含结尾 NUL） */
+    JackClientNameResult res;
+    res.random = false;
+
+    /* 1. 全名 */
+    if (fullName.size() <= kMaxLen)
+    {
+        res.name = fullName;
+        return res;
+    }
+
+    /* 2. 缩写 */
+    {
+        std::string ab = AbbreviateClientName(fullName);
+        if (!ab.empty() && ab.size() <= kMaxLen)
+        {
+            res.name = ab;
+            return res;
+        }
+    }
+
+    /* 3. 省略号 */
+    {
+        std::string el = TruncateJackClientName(fullName);
+        if (!el.empty() && el.size() <= kMaxLen)
+        {
+            res.name = el;
+            return res;
+        }
+    }
+
+    /* 4. Client_随机字符串 */
+    res.name = RandomClientName();
+    res.random = true;
+    return res;
+}
+
+/*****************************************************************************/
 /* DWM 系统风格（计划书 §5.9.1）                                              */
 /*****************************************************************************/
 /* 读取系统“应用使用深色模式”设置（0=深色） */
@@ -775,16 +964,39 @@ bool CMainFrame::StartJackAudio()
 
     /* 客户端名：优先用当前插件名（GetStateBase = 窗口标题，如
        "Magma StressBox Stereo_1"，短且有意义）；无插件时用 exe 主干名。
-       JACK 客户端名硬上限 27 字符（含结尾），故不再用带 shell 前缀的
-       超长 exe 名（会被截断成 "(WaveShell1-VST3 16.6_x64)M"）。 */
+       JACK 客户端名硬上限 27 字符（含结尾），fallback 链：
+       全名 → 缩写（D_N_U_S_7.1_1）→ 省略号（DTS Neural...Stereo_7.1_1）
+       → Client_随机字符串（兜底，并在 ini 写映射便于反查实例序号）。 */
     std::wstring hostName = (m_pHost && m_pHost->IsLoaded())
                                 ? m_pHost->GetStateBase()
                                 : ComputeHostName();
+    std::string utf8;
+    {
+        int n = WideCharToMultiByte(CP_UTF8, 0, hostName.c_str(), -1,
+                                    NULL, 0, NULL, NULL);
+        if (n > 1)
+        {
+            utf8.resize(n - 1);
+            WideCharToMultiByte(CP_UTF8, 0, hostName.c_str(), -1,
+                                &utf8[0], n, NULL, NULL);
+        }
+    }
+    JackClientNameResult nr = MakeJackClientName(utf8);
+    std::string cnameStr = nr.name;
     char cname[64] = { 0 };
-    WideCharToMultiByte(CP_UTF8, 0, hostName.c_str(), -1,
-                        cname, sizeof(cname) - 1, NULL, NULL);
-    if (strlen(cname) > 27)
-        cname[27] = 0;
+    cnameStr.copy(cname, sizeof(cname) - 1);
+
+    /* 随机名兜底：写 ini 映射 [JackNames] _<实例序号>=Client_xxx */
+    if (nr.random)
+    {
+        wchar_t key[16];
+        swprintf(key, 16, L"_%d", GetInstanceOrdinal());
+        std::wstring wname;                      /* 随机名纯 ASCII，逐字节转 */
+        for (size_t k = 0; k < cnameStr.size(); k++)
+            wname += (wchar_t)(unsigned char)cnameStr[k];
+        WritePrivateProfileStringW(L"JackNames", key, wname.c_str(),
+                                   AsioConfigPath().c_str());
+    }
 
     if (!m_pJack->Open(cname, 0.0, 0, in, out, GetSafeHwnd()))
     {
@@ -2535,7 +2747,7 @@ void CMainFrame::OnFileSaveExe()
 
 void CMainFrame::OnAppAbout()
 {
-    AfxMessageBox(_T("Single VST Host 1.1（vsthost）\n单插件 VST2/VST3 宿主（ASIO / JACK2 音频后端）\n\n本仓库的改造与代码由 AI（GitHub Copilot）辅助编写，\n衍生自 Arakula/vsthost（尊重原开发者）。"),
+    AfxMessageBox(_T("Single VST Host 1.2（vsthost）\n单插件 VST2/VST3 宿主（ASIO / JACK2 音频后端）\n\n本仓库的改造与代码由 AI（GitHub Copilot）辅助编写，\n衍生自 Arakula/vsthost（尊重原开发者）。"),
                   MB_OK | MB_ICONINFORMATION);
 }
 
