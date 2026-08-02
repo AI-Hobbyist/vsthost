@@ -116,6 +116,39 @@ bool CJackBackend::ServerAvailable()
 }
 
 /*****************************************************************************/
+/* GetUsedClientNames : 查询服务器上已占用的客户端名（端口名 "client:port"）  */
+/*   解析出 client 部分去重；供 JACK 客户端名撞名检测（Open 前调用）           */
+/*****************************************************************************/
+bool CJackBackend::GetUsedClientNames(std::set<std::string> &out)
+{
+    out.clear();
+    if (!m_hLib && !LoadApi())
+        return false;
+
+    jack_status_t status = (jack_status_t)0;
+    jack_client_t *probe = jack_client_open("vsthost_probe",
+                                            (jack_options_t)(JackNullOption | JackNoStartServer),
+                                            &status);
+    if (!probe)
+        return false;
+
+    const char **ports = jack_get_ports(probe, NULL, NULL, 0);
+    if (ports)
+    {
+        for (int i = 0; ports[i]; i++)
+        {
+            std::string p = ports[i];
+            size_t c = p.find(':');
+            if (c != std::string::npos)
+                out.insert(p.substr(0, c));
+        }
+        jack_free(ports);
+    }
+    jack_client_close(probe);
+    return true;
+}
+
+/*****************************************************************************/
 /* Open : 打开 JACK client + 按插件能力注册端口（不启动）                      */
 /*****************************************************************************/
 bool CJackBackend::Open(const char *clientName, double wantRate, int wantBufSize,

@@ -12,6 +12,7 @@
 
 #include <windows.h>
 #include <string>
+#include <set>
 
 #include <jack/jack.h>
 #include <jack/midiport.h>
@@ -59,6 +60,10 @@ public:
     // 静态：lib 是否可加载 / JACK 服务器是否在运行
     static bool IsAvailable();
     static bool ServerAvailable();
+
+    // 查询服务器上已占用的客户端名（从端口名 "client:port" 解析 client 部分；
+    // 供客户端名撞名检测，Open 前调用）
+    bool GetUsedClientNames(std::set<std::string> &out);
 
     // 实时回调内：本帧收到的 MIDI 输入事件
     // （同一 JACK 回调内由后端写入、随后被处理回调消费，单线程无需锁）

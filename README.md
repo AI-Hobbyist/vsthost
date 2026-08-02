@@ -35,7 +35,7 @@ This repository is a deep rework of [Arakula/vsthost](https://github.com/Arakula
 | **Loudness meters (BS.1770)** | Standalone window with M/S/I/LRA/True Peak, EBU R128 / ATSC etc., CSV loudness logging |
 | **MIDI CC → parameter mapping** | `MidiMapDialog` for VST2 / VST3 |
 | **Tray, close behavior & global settings** | Minimize to tray, configurable close action, global settings dialog |
-| **App icon / version / Chinese manual** | Full-size icon, `VERSIONINFO` (1.2.0.0), `docs/说明书.md` bundled on packaging |
+| **App icon / version / Chinese manual** | Full-size icon, `VERSIONINFO` (1.3.0.0), `docs/说明书.md` bundled on packaging |
 | **`shell2vst` standalone tool** | CLI that unpacks shell effects into standalone exe / dll / vst3 — fully decoupled from the host |
 | **Packaging tooling** | `tools/pack.ps1`, `refresh_test_exes.ps1`, `build_wrappers.ps1`, `make_icon.py` |
 | **Bilingual README + .gitignore** | EN (default) + zh-CN; ignores build / test / third-party SDK artifacts |

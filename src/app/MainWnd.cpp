@@ -25,6 +25,8 @@
 #include "../ui/loudness_std.h"
 #include "../host/MidiInput.h"
 
+#include <set>
+
 /*****************************************************************************/
 /* JACK 客户端名：超过 27 字节时中间省略（...），保证末尾数字序号后缀        */
 /* （_1、_2…）始终可见；截断按 UTF-8 边界进行，避免切半多字节字符。          */
@@ -152,66 +154,67 @@ static std::string AbbreviateClientName(const std::string &name)
     return out + suffix;
 }
 
-/* Client_ 随机字符串兜底（7 + 20 小写字母 = 27 字节，恰好 ≤ 上限） */
-static std::string RandomClientName()
+/* Client_ 确定性兜底名：以插件全名为种子，固定生成 20 位小写字母
+   （7 + 20 = 27 字节，恰好 ≤ 上限；同一插件名每次得到同一名字，
+   保证 fallback 到兜底后仅首次生成、后续固定） */
+static std::string RandomClientName(const std::string &seed)
 {
-    static bool seeded = false;
-    if (!seeded)
+    /* FNV-1a 初值 */
+    unsigned long long h = 1469598103934665603ULL;
+    for (size_t i = 0; i < seed.size(); i++)
     {
-        srand((unsigned)(::GetTickCount() ^ ::GetCurrentProcessId()));
-        seeded = true;
+        h ^= (unsigned char)seed[i];
+        h *= 1099511628211ULL;
     }
     const char *alphabet = "abcdefghijklmnopqrstuvwxyz";
     std::string r = "Client_";
     for (int i = 0; i < 20; i++)
-        r += alphabet[rand() % 26];
+    {
+        /* murmur3 finalizer 混合，保证位分布均匀 */
+        h ^= h >> 33; h *= 0xff51afd7ed558ccdULL;
+        h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ULL;
+        h ^= h >> 33;
+        r += alphabet[h % 26];
+    }
     return r;
 }
 
-struct JackClientNameResult
-{
-    std::string name;    /* 最终客户端名 */
-    bool        random;  /* 是否落入 Client_随机 兜底 */
-};
-
-/* JACK 客户端名 fallback：全名 → 缩写 → 省略号 → Client_随机字符串 */
-static JackClientNameResult MakeJackClientName(const std::string &fullName)
+/* JACK 客户端名 fallback：全名 → 省略号 → 缩写 → 确定性随机兜底。
+   超 27 字节或撞名（used 已包含）即降级下一级；随机兜底以插件名为
+   种子确定性生成（撞名时换变体重试，至多 8 次）。 */
+static std::string MakeJackClientName(const std::string &fullName,
+                                      const std::set<std::string> &used)
 {
     const size_t kMaxLen = 27;      /* JACK 客户端名上限（含结尾 NUL） */
-    JackClientNameResult res;
-    res.random = false;
+    auto inUse = [&used](const std::string &n)
+    { return used.find(n) != used.end(); };
 
     /* 1. 全名 */
-    if (fullName.size() <= kMaxLen)
-    {
-        res.name = fullName;
-        return res;
-    }
+    if (fullName.size() <= kMaxLen && !inUse(fullName))
+        return fullName;
 
-    /* 2. 缩写 */
-    {
-        std::string ab = AbbreviateClientName(fullName);
-        if (!ab.empty() && ab.size() <= kMaxLen)
-        {
-            res.name = ab;
-            return res;
-        }
-    }
-
-    /* 3. 省略号 */
+    /* 2. 省略号 */
     {
         std::string el = TruncateJackClientName(fullName);
-        if (!el.empty() && el.size() <= kMaxLen)
-        {
-            res.name = el;
-            return res;
-        }
+        if (!el.empty() && el.size() <= kMaxLen && !inUse(el))
+            return el;
     }
 
-    /* 4. Client_随机字符串 */
-    res.name = RandomClientName();
-    res.random = true;
-    return res;
+    /* 3. 缩写 */
+    {
+        std::string ab = AbbreviateClientName(fullName);
+        if (!ab.empty() && ab.size() <= kMaxLen && !inUse(ab))
+            return ab;
+    }
+
+    /* 4. 确定性随机兜底 */
+    for (int k = 0; k < 8; k++)
+    {
+        std::string rn = RandomClientName(fullName + std::string(1, (char)('A' + k)));
+        if (!inUse(rn))
+            return rn;
+    }
+    return RandomClientName(fullName);
 }
 
 /*****************************************************************************/
@@ -962,11 +965,12 @@ bool CMainFrame::StartJackAudio()
     m_pJack->SetMidiPorts(p->WantMidiInput(), p->WantMidiOutput());
     m_pJack->SetNotifyWindow(GetSafeHwnd());
 
-    /* 客户端名：优先用当前插件名（GetStateBase = 窗口标题，如
-       "Magma StressBox Stereo_1"，短且有意义）；无插件时用 exe 主干名。
-       JACK 客户端名硬上限 27 字符（含结尾），fallback 链：
-       全名 → 缩写（D_N_U_S_7.1_1）→ 省略号（DTS Neural...Stereo_7.1_1）
-       → Client_随机字符串（兜底，并在 ini 写映射便于反查实例序号）。 */
+    /* 客户端名：优先用当前插件名（GetStateBase = 窗口标题，含实例序号
+       "插件名_1"）；无插件时用 exe 主干名。JACK 客户端名上限 27 字节。
+       先查 ini 持久化映射 [JackNames] <插件原全名_序号>=<最终客户端名>
+       （首次生成后固定）；无记录或撞名/超限时按 fallback 链重新生成：
+       全名 → 省略号 → 缩写 → 确定性随机兜底（种子=插件名），
+       无论落在哪一级都写回 ini 持久保存。 */
     std::wstring hostName = (m_pHost && m_pHost->IsLoaded())
                                 ? m_pHost->GetStateBase()
                                 : ComputeHostName();
@@ -981,22 +985,47 @@ bool CMainFrame::StartJackAudio()
                                 &utf8[0], n, NULL, NULL);
         }
     }
-    JackClientNameResult nr = MakeJackClientName(utf8);
-    std::string cnameStr = nr.name;
+
+    /* 撞名检测：服务器上当前已占用的客户端名集合 */
+    std::set<std::string> used;
+    m_pJack->GetUsedClientNames(used);
+
+    std::string cnameStr;
+    {
+        /* 优先读 ini 持久化名字 */
+        wchar_t wini[64] = { 0 };
+        GetPrivateProfileStringW(L"JackNames", hostName.c_str(), L"",
+                                 wini, 64, AsioConfigPath().c_str());
+        if (wini[0])
+        {
+            int m = WideCharToMultiByte(CP_UTF8, 0, wini, -1, NULL, 0, NULL, NULL);
+            if (m > 1)
+            {
+                cnameStr.resize(m - 1);
+                WideCharToMultiByte(CP_UTF8, 0, wini, -1,
+                                    &cnameStr[0], m, NULL, NULL);
+            }
+        }
+        /* 无效（空/超限/撞名）则重新 fallback 并写回 */
+        if (cnameStr.empty() || cnameStr.size() > 27 ||
+            used.find(cnameStr) != used.end())
+        {
+            cnameStr = MakeJackClientName(utf8, used);
+            std::wstring wout;
+            int m = MultiByteToWideChar(CP_UTF8, 0, cnameStr.c_str(), -1,
+                                        NULL, 0);
+            if (m > 1)
+            {
+                wout.resize(m - 1);
+                MultiByteToWideChar(CP_UTF8, 0, cnameStr.c_str(), -1,
+                                    &wout[0], m);
+            }
+            WritePrivateProfileStringW(L"JackNames", hostName.c_str(),
+                                       wout.c_str(), AsioConfigPath().c_str());
+        }
+    }
     char cname[64] = { 0 };
     cnameStr.copy(cname, sizeof(cname) - 1);
-
-    /* 随机名兜底：写 ini 映射 [JackNames] _<实例序号>=Client_xxx */
-    if (nr.random)
-    {
-        wchar_t key[16];
-        swprintf(key, 16, L"_%d", GetInstanceOrdinal());
-        std::wstring wname;                      /* 随机名纯 ASCII，逐字节转 */
-        for (size_t k = 0; k < cnameStr.size(); k++)
-            wname += (wchar_t)(unsigned char)cnameStr[k];
-        WritePrivateProfileStringW(L"JackNames", key, wname.c_str(),
-                                   AsioConfigPath().c_str());
-    }
 
     if (!m_pJack->Open(cname, 0.0, 0, in, out, GetSafeHwnd()))
     {
@@ -2747,7 +2776,7 @@ void CMainFrame::OnFileSaveExe()
 
 void CMainFrame::OnAppAbout()
 {
-    AfxMessageBox(_T("Single VST Host 1.2（vsthost）\n单插件 VST2/VST3 宿主（ASIO / JACK2 音频后端）\n\n本仓库的改造与代码由 AI（GitHub Copilot）辅助编写，\n衍生自 Arakula/vsthost（尊重原开发者）。"),
+    AfxMessageBox(_T("Single VST Host 1.3（vsthost）\n单插件 VST2/VST3 宿主（ASIO / JACK2 音频后端）\n\n本仓库的改造与代码由 AI（GitHub Copilot）辅助编写，\n衍生自 Arakula/vsthost（尊重原开发者）。"),
                   MB_OK | MB_ICONINFORMATION);
 }
 
