@@ -28,6 +28,8 @@
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "pluginterfaces/base/funknownimpl.h"
 
+#include "pluginterfaces/vst/vstspeaker.h"
+
 /* BusNameToUtf8 : BusInfo.name（String128 = TChar[128]，TChar 为 char16_t，UTF-16）转 UTF-8。
    Windows 下 wchar_t 同为 16 位 UTF-16，先逐元素复制到 wchar_t 缓冲再转换 */
 static std::string BusNameToUtf8(const Steinberg::Vst::String128 &name)
@@ -47,6 +49,53 @@ static std::string BusNameToUtf8(const Steinberg::Vst::String128 &name)
         return s;
     }
     return std::string();
+}
+
+/* SpeakerAt : 声道布置位掩码中第 index 个置位通道的 Speaker 位；越界返回 0 */
+static Steinberg::Vst::Speaker SpeakerAt(unsigned long long arr, int index)
+{
+    int n = -1;
+    for (int bit = 0; bit < 64; bit++)
+    {
+        if (arr & (1ULL << bit))
+        {
+            n++;
+            if (n == index)
+                return (Steinberg::Vst::Speaker)(1ULL << bit);
+        }
+    }
+    return (Steinberg::Vst::Speaker)0;
+}
+
+/* Speaker 位 → 标准短名；未知返回 NULL */
+static const char *SpeakerShortName(Steinberg::Vst::Speaker sp)
+{
+    switch (sp)
+    {
+    case Steinberg::Vst::kSpeakerM:    return "M";
+    case Steinberg::Vst::kSpeakerL:    return "L";
+    case Steinberg::Vst::kSpeakerR:    return "R";
+    case Steinberg::Vst::kSpeakerC:    return "C";
+    case Steinberg::Vst::kSpeakerLfe:  return "LFE";
+    case Steinberg::Vst::kSpeakerLs:   return "Ls";
+    case Steinberg::Vst::kSpeakerRs:   return "Rs";
+    case Steinberg::Vst::kSpeakerLc:   return "Lc";
+    case Steinberg::Vst::kSpeakerRc:   return "Rc";
+    case Steinberg::Vst::kSpeakerCs:   return "S";
+    case Steinberg::Vst::kSpeakerSl:   return "Sl";
+    case Steinberg::Vst::kSpeakerSr:   return "Sr";
+    case Steinberg::Vst::kSpeakerTc:   return "Tc";
+    case Steinberg::Vst::kSpeakerTfl:  return "Tfl";
+    case Steinberg::Vst::kSpeakerTfc:  return "Tfc";
+    case Steinberg::Vst::kSpeakerTfr:  return "Tfr";
+    case Steinberg::Vst::kSpeakerTrl:  return "Trl";
+    case Steinberg::Vst::kSpeakerTrc:  return "Trc";
+    case Steinberg::Vst::kSpeakerTrr:  return "Trr";
+    case Steinberg::Vst::kSpeakerLfe2: return "LFE2";
+    case Steinberg::Vst::kSpeakerLw:   return "Lw";
+    case Steinberg::Vst::kSpeakerRw:   return "Rw";
+    default: return NULL;
+    }
 }
 
 /*===========================================================================*/
@@ -279,6 +328,13 @@ void Vst3Plugin::QueryBusses()
             AudioBusRec b;
             b.name = BusNameToUtf8(info.name);        /* 真实总线名（可能为空） */
             b.channelCount = info.channelCount;
+            b.arrangement = 0;
+            if (m_processor)
+            {
+                Steinberg::Vst::SpeakerArrangement arr = 0;
+                if (m_processor->getBusArrangement(Steinberg::Vst::kInput, i, arr) == Steinberg::kResultOk)
+                    b.arrangement = (unsigned long long)arr;
+            }
             m_inBuses.push_back(b);
         }
     }
@@ -292,6 +348,13 @@ void Vst3Plugin::QueryBusses()
             AudioBusRec b;
             b.name = BusNameToUtf8(info.name);
             b.channelCount = info.channelCount;
+            b.arrangement = 0;
+            if (m_processor)
+            {
+                Steinberg::Vst::SpeakerArrangement arr = 0;
+                if (m_processor->getBusArrangement(Steinberg::Vst::kOutput, i, arr) == Steinberg::kResultOk)
+                    b.arrangement = (unsigned long long)arr;
+            }
             m_outBuses.push_back(b);
         }
     }
@@ -300,8 +363,8 @@ void Vst3Plugin::QueryBusses()
 }
 
 /*****************************************************************************/
-/* GetChannelName : 返回第 idx 通道的真实端口名（所属音频总线的 name；多通道 */
-/*   总线加 _N 后缀保证 JACK 端口名唯一）；总线名为空或找不到则返回 false    */
+/* GetChannelName : 返回第 idx 通道的真实端口名，依次 fallback：               */
+/*   L1 总线名（多通道加 _N 后缀）→ L2 声道布置标准名（L/R/C/LFE…）→ false    */
 /*****************************************************************************/
 bool Vst3Plugin::GetChannelName(int idx, bool input, char *out, int cap) const
 {
@@ -314,13 +377,28 @@ bool Vst3Plugin::GetChannelName(int idx, bool input, char *out, int cap) const
         int cnt = buses[b].channelCount;
         if (idx >= off && idx < off + cnt)
         {
+            int within = idx - off;
+            /* L1: 总线名（多通道加 _N 后缀保证 JACK 端口名唯一） */
             const std::string &n = buses[b].name;
-            if (n.empty())
-                return false;
-            std::string full = (cnt > 1) ? n + "_" + std::to_string(idx - off + 1) : n;
-            strncpy(out, full.c_str(), (size_t)cap - 1);
-            out[cap - 1] = '\0';
-            return true;
+            if (!n.empty())
+            {
+                std::string full = (cnt > 1) ? n + "_" + std::to_string(within + 1) : n;
+                strncpy(out, full.c_str(), (size_t)cap - 1);
+                out[cap - 1] = '\0';
+                return true;
+            }
+            /* L2: 声道布置标准名（L/R/C/LFE/Ls/Rs…） */
+            if (buses[b].arrangement)
+            {
+                const char *sn = SpeakerShortName(SpeakerAt(buses[b].arrangement, within));
+                if (sn)
+                {
+                    strncpy(out, sn, (size_t)cap - 1);
+                    out[cap - 1] = '\0';
+                    return true;
+                }
+            }
+            return false;
         }
         off += cnt;
     }

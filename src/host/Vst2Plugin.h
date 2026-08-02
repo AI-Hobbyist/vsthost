@@ -101,4 +101,7 @@ protected:
     int m_nMidiOut;
 
     VstTimeInfo m_vstTimeInfo;
+
+    // effGetSpeakerArrangement 缓存（逐通道名 fallback：扬声器自定义名 / 标准声道名）
+    VstSpeakerArrangement m_speakerIn, m_speakerOut;
 };

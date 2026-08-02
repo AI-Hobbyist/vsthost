@@ -196,23 +196,77 @@ void Vst2Plugin::RefreshName()
         strncpy(m_szName, m_szPath, sizeof(m_szName) - 1);   /* 回退：模块名 */
 }
 
+/* VstSpeakerType → 标准短名；未知返回 NULL */
+static const char *Vst2SpeakerShortName(VstInt32 type)
+{
+    switch (type)
+    {
+    case kSpeakerM:    return "M";
+    case kSpeakerL:    return "L";
+    case kSpeakerR:    return "R";
+    case kSpeakerC:    return "C";
+    case kSpeakerLfe:  return "LFE";
+    case kSpeakerLs:   return "Ls";
+    case kSpeakerRs:   return "Rs";
+    case kSpeakerLc:   return "Lc";
+    case kSpeakerRc:   return "Rc";
+    case kSpeakerS:    return "S";
+    case kSpeakerSl:   return "Sl";
+    case kSpeakerSr:   return "Sr";
+    case kSpeakerTm:   return "Tm";
+    case kSpeakerTfl:  return "Tfl";
+    case kSpeakerTfc:  return "Tfc";
+    case kSpeakerTfr:  return "Tfr";
+    case kSpeakerTrl:  return "Trl";
+    case kSpeakerTrc:  return "Trc";
+    case kSpeakerTrr:  return "Trr";
+    case kSpeakerLfe2: return "LFE2";
+    default: return NULL;
+    }
+}
+
 /*****************************************************************************/
-/* GetChannelName : 返回第 idx 通道的真实端口名（effGetInput/OutputProperties */
-/*   的引脚 label；label 为空或插件不支持则返回 false → 上层回退默认命名）   */
+/* GetChannelName : 返回第 idx 通道的真实端口名，依次 fallback：               */
+/*   L1 引脚 label → L2 扬声器自定义名 → L3 标准声道名 → false                */
 /*****************************************************************************/
 bool Vst2Plugin::GetChannelName(int idx, bool input, char *out, int cap) const
 {
     if (!out || cap <= 0 || !m_pEff || !m_pEff->pEffect)
         return false;
+
+    /* L1: 引脚 label（effGetInputProperties / effGetOutputProperties） */
     VstPinProperties props;
     memset(&props, 0, sizeof(props));
     long rc = input ? m_pEff->EffGetInputProperties(idx, &props)
                     : m_pEff->EffGetOutputProperties(idx, &props);
-    if (rc != 1 || props.label[0] == '\0')
-        return false;
-    strncpy(out, props.label, (size_t)cap - 1);
-    out[cap - 1] = '\0';
-    return true;
+    if (rc == 1 && props.label[0] != '\0')
+    {
+        strncpy(out, props.label, (size_t)cap - 1);
+        out[cap - 1] = '\0';
+        return true;
+    }
+
+    /* L2/L3: 扬声器布置（effGetSpeakerArrangement 缓存） */
+    const VstSpeakerArrangement &sa = input ? m_speakerIn : m_speakerOut;
+    if (idx >= 0 && idx < (int)sa.numChannels)
+    {
+        /* L2: 插件自定义扬声器名 */
+        if (sa.speakers[idx].name[0] != '\0')
+        {
+            strncpy(out, sa.speakers[idx].name, (size_t)cap - 1);
+            out[cap - 1] = '\0';
+            return true;
+        }
+        /* L3: 标准声道名（kSpeakerL→"L" 等） */
+        const char *sn = Vst2SpeakerShortName(sa.speakers[idx].type);
+        if (sn)
+        {
+            strncpy(out, sn, (size_t)cap - 1);
+            out[cap - 1] = '\0';
+            return true;
+        }
+    }
+    return false;
 }
 
 const char *Vst2Plugin::GetName() const
@@ -253,6 +307,17 @@ bool Vst2Plugin::InitEffect()
     e->EffSuspend();
     e->EffSetBlockSize(m_nBlockSize);
     e->EffResume();
+
+    /* 缓存扬声器布置（effGetSpeakerArrangement）：逐通道名 fallback 用 */
+    memset(&m_speakerIn, 0, sizeof(m_speakerIn));
+    memset(&m_speakerOut, 0, sizeof(m_speakerOut));
+    VstSpeakerArrangement *spIn = NULL, *spOut = NULL;
+    if (e->EffGetSpeakerArrangement(&spIn, &spOut) == 1)
+    {
+        if (spIn)  m_speakerIn  = *spIn;
+        if (spOut) m_speakerOut = *spOut;
+    }
+
     m_bInited = true;
     return true;
 }

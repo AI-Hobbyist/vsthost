@@ -103,7 +103,12 @@ protected:
     int   m_nEventIn, m_nEventOut;  // 事件（MIDI）输入/输出总线数
 
     // 音频总线名（QueryBusses 收集，JACK 端口名用）
-    struct AudioBusRec { std::string name; int channelCount; };
+    struct AudioBusRec
+    {
+        std::string name;            // 总线名（可能为空）
+        int         channelCount;    // 总线通道数
+        unsigned long long arrangement;  // SpeakerArrangement 位掩码（0=未知）
+    };
     std::vector<AudioBusRec> m_inBuses, m_outBuses;
 
     double m_dSampleRate;
